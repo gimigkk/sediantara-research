@@ -184,44 +184,78 @@ Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuh
 - **Output:** Vektor proyeksi kuantil kebutuhan per SKU untuk horizon perencanaan.
 
 ##### Stage 2: Optimasi Target Kas & Risiko (Wasserstein DRO) (`backend/allocation_engine.py`)
+
+> **TL;DR untuk Engineer:**  
+> Stage 2 adalah solver **Linear Programming (LP)** via `scipy.optimize.linprog(method='highs')`.  
+> Tujuannya: mencari target stok desimal ($x_i^*$) yang paling tahan terhadap lonjakan kasus terburuk (Wasserstein DRO [12][18]) di bawah batasan keras pagu kas BLUD.
+
 - **Masalah Nyata (The Problem):**
   Dari Stage 1, kita punya angka kebutuhan ideal. Masalahnya: **Kas rumah sakit terbatas.**
-  - Kalau kita beli stok maksimal (P90) untuk semua obat $\to$ Kas BLUD langsung jebol (*Out of Budget*).
-  - Kalau kita potong manual atau bagi rata $\to$ Obat kritis (seperti infus DBD atau Epinefrin) bisa habis saat wabah mendadak melonjak.
-- **Analogi Sederhana untuk Software Engineer:**
-  Bayangkan Stage 2 seperti **Smart Resource Allocator** (mirip manajemen alokasi RAM server):
-  - Kamu punya RAM terbatas 16 GB (Pagu Kas Rp 95 Juta). Ada 50 service (50 obat) yang meminta alokasi memori.
-  - Service kritis (*Core DB* / Obat Vital) **wajib dapat alokasi aman 100%**, tidak boleh crash.
-  - Sisa memori yang terbatas harus dibagi ke service lain (*Worker* / Obat Esensial).
-  - **Fungsi Wasserstein DRO:** Solver menguji alokasi: *"Jika terjadi lonjakan traffic terburuk akibat badai hujan (distribution shift), pembagian kuota memori mana yang paling meminimalkan risiko server down?"*
-- **Cara Kerja di Kode (`backend/allocation_engine.py`):**
-  Fungsi menerima input: hasil prediksi kuantil Stage 1, batas pagu kas BLUD [8], dan bobot prioritas klinis ($V > E > N$) [4][21]. Solver **HiGHS** (`scipy.optimize.linprog`) mengeksekusi optimasi satu kali jalan:
-  1. **Kunci Pengaman Vital:** Menjamin stok obat Vital minimal menyentuh lantai aman darurat (`vital_min_stock` KFT) [7].
+  - Jika beli stok maksimal (P90) untuk semua obat $\to$ Kas BLUD langsung jebol (*Out of Budget*).
+  - Jika potong manual atau bagi rata $\to$ Obat kritis (seperti infus DBD atau Epinefrin) bisa habis saat wabah mendadak melonjak.
+
+- **Analogi Sederhana (RAM Allocator):**
+  - Anda punya RAM 16 GB (Pagu Kas Rp 95 Juta) untuk 50 service (50 SKU obat).
+  - Service kritis (*Core DB* / Obat Vital) **wajib dapat kuota 100% aman**, tidak boleh crash (`vital_min_stock`).
+  - Sisa memori dibagi ke *Worker* (Obat Esensial).
+  - **Fungsi Wasserstein DRO:** Solver menguji alokasi: *"Jika traffic melonjak ekstrem akibat cuaca (distribution shift), alokasi kuota mana yang meminimalkan risiko server down?"*
+
+- **I/O & Spesifikasi Teknis di Kode (`backend/allocation_engine.py`):**
+  ```python
+  # Input Interface:
+  # - quantiles: dict {item_id: {'p50': float, 'p80': float, 'p90': float}}
+  # - budget_limit: float (sisa pagu kas cair BLUD)
+  # - ven_weights: dict {'V': 100.0, 'E': 10.0, 'N': 1.0}
+  # - unit_prices: dict {item_id: float}
+  # - current_stocks: dict {item_id: float}
+  #
+  # Output:
+  # - target_units: dict {item_id: float (x_i^* optimal kontinu)}
+  # - solver_status: 'optimal' | 'infeasible'
+  ```
+
+- **Cara Kerja Solver LP (3 Aturan Kunci):**
+  1. **Lantai Pengaman Vital:** Menjamin stok obat Vital minimal menyentuh lantai aman darurat (`vital_min_stock` KFT) [7].
   2. **Bagi Kas Berbasis Risiko Terburuk (DRO):** Mendistribusikan sisa kas ke obat Esensial yang paling rawan lonjakan kasus agar dampak klinis ke pasien seminimal mungkin [12][18].
-  3. **Kunci Pagu Kas (Hard Constraint):** Memastikan total rupiah belanja tidak pernah melampaui sisa kas BLUD:
+  3. **Hard Constraint Pagu Kas:** Total nilai belanja tidak boleh melampaui sisa kas BLUD [8]:
      $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
-- **Kenapa Pakai Nama "Wasserstein DRO"?**
-  Karena kata *Distributionally Robust Optimization* (DRO) dengan metrik *Wasserstein* menjamin secara matematis bahwa target stok yang dihasilkan **tahan banting terhadap perubahan pola penyakit di dunia nyata**, bukan cuma pas di data historis masa lalu [12][18].
+
 - **Output:** Target angka kebutuhan ideal per obat ($x_i^*$, angka desimal kontinu) yang sudah lolos uji pagu kas dan siap diubah menjadi kemasan fisik box di Stage 3.
 - **Performa:** Selesai dalam tempo **< 10 milidetik di CPU standar** (tanpa butuh GPU).
 
 ##### Stage 3: Eksekutor Pembulatan Kemasan Box & Kuota Vendor (`backend/allocation_engine.py`)
+
+> **TL;DR untuk Engineer:**  
+> Stage 3 mengubah angka desimal ($x_i^*$) menjadi **integer box resmi e-Katalog** ($\lceil \text{unit}/P_i \rceil$), memvalidasi MOQ, dan menerapkan **rem likuiditas** jika utang ke distributor sudah menua ($\ge 60$ hari).
+
 - **The Problem:** Distributor farmasi (PBF) di e-Katalog tidak melayani pesanan pecahan desimal (wajib kelipatan kemasan box fisik $P_i$ dan mematuhi batas order minimal $\text{MOQ}_i$) [9]. Selain itu, jika tagihan ke distributor menumpuk akibat klaim BPJS pending, distributor akan memblokir sepihak akun RSUD (*credit freeze*) [23].
-- **What It Takes (Input):**
-  - Target kontinu $x_i^*$ dari Stage 2.
-  - Master data e-Katalog LKPP: isi per box ($P_i$), batas $\text{MOQ}_i$, dan harga satuan [9].
-  - Sisa saldo stok fisik gudang dan pesanan berjalan (*on order*).
-  - Status umur utang dagang (AP aging) ke masing-masing distributor penyedia [23].
-- **What It Does (Logic):**
-  - Menjalankan algoritma **Greedy Runway Waterfall**:
-    1. Hitung hari ketahanan stok (*Runway*): sisa stok dibagi konsumsi harian.
-    2. Alokasikan kas bertahap ke item dengan *Runway* paling kritis (paling cepat habis) mengikuti hierarki klinis:
-       $$\text{Dasar Vital} \longrightarrow \text{Dasar Esensial} \longrightarrow \text{Buffer Vital} \longrightarrow \text{Buffer Esensial} \longrightarrow \text{Non-Esensial}$$
-    3. Bulatkan kuantitas pesanan ke kelipatan box resmi e-Katalog ($\lceil \text{unit}/P_i \rceil$) dan penuhi syarat $\text{MOQ}_i$.
-    4. **Rem Likuiditas Utang Distributor:** Jika utang ke distributor PBF menyentuh batas peringatan 60 hari (mendekati batas kritis embargo 90 hari), sistem secara proaktif memangkas alokasi buffer non-vital demi menjaga akun kredit RSUD tetap aktif [23]. Obat Vital kebal dari pemangkasan ini.
-    5. **Jalur Kas Defisit (Infeasible):** Jika kas sangat tipis hingga kebutuhan pokok Vital defisit, sistem menerbitkan nota eskalasi fleksibilitas belanja BLUD (Permendagri 79/2018) [8] dan rekomendasi bon pinjam-mengganti persediaan darurat antar-RSUD (Permenkes 72/2016 jo. PerBPOM 24/2021) [16].
-- **What It Gives (Output):**
-  - Draf Usulan Pembelian / Defekta resmi dalam format CSV yang siap dieksekusi oleh Pejabat Pengadaan (PP) & PPK di portal e-Purchasing LKPP [9].
+
+- **I/O & Spesifikasi Teknis di Kode (`backend/allocation_engine.py`):**
+  ```python
+  # Input:
+  # - target_units: dict {item_id: float} (hasil Stage 2)
+  # - pack_sizes: dict {item_id: int} (isi unit per box)
+  # - moq_boxes: dict {item_id: int} (minimal order box vendor)
+  # - ap_aging_days: dict {supplier_id: int} (umur invoice terlama)
+  #
+  # Output:
+  # - final_po_boxes: dict {item_id: int (jumlah box fisik e-Katalog)}
+  # - is_credit_throttled: dict {item_id: bool}
+  ```
+
+- **Alur Eksekusi Algoritma (Greedy Runway Waterfall):**
+  1. **Hitung Runway (Sisa Hari Ketahanan):**
+     $$\text{Runway (Hari)} = \frac{\text{Stok Gudang} + \text{Pesanan di Jalan} + (\text{Box Dibeli} \times P_i)}{\max(\text{Laju Pakai Harian}, \; \texttt{vital\_min\_stock} / H, \; \epsilon)}$$
+  2. **Antrekan Prioritas:** SKU dengan Runway terpendek (paling cepat habis) diposisikan di antrean paling depan.
+  3. **Alokasikan per Lapisan:**
+     - `Lapisan 1 (Dasar Vital):` Wajib didanai 100%. Jika kas kurang $\to$ set `status: INFEASIBLE` (§4.3.5).
+     - `Lapisan 2 (Dasar Esensial):` Didanai setelah Lapisan 1 selesai.
+     - `Lapisan 3 (Buffer Vital):` Didanai hingga target $x_i^*$ Stage 2.
+     - `Lapisan 4 (Buffer Esensial):` Jika kas menipis, potong dengan urutan efisiensi kas: **Kelas A ➔ B ➔ C** (dana buffer diprioritaskan ke **C ➔ B ➔ A**).
+     - `Lapisan 5 (Non-Esensial):` Hanya didanai jika seluruh buffer V dan E sudah selesai dan kas masih tersisa.
+  4. **Knapsack Pass (Skip Rule):** Jika sisa kas tidak cukup untuk 1 paket MOQ SKU antrean depan, lewati (*skip*) ke SKU berikutnya yang muat di sisa kas (mencegah kas menganggur).
+  5. **Rem Likuiditas Utang Distributor (Credit Lock Guard):** Jika umur utang ke vendor $\ge 60$ hari, alokasi buffer obat non-vital dari vendor tersebut otomatis ditahan [23] agar akun RSUD tidak dibekukan di hari ke-90. Obat Vital kebal dari penahanan ini.
+  6. **Ekspor Draf PO:** Output dikemas ke format CSV siap upload ke portal e-Purchasing LKPP [9].
 
 ##### Mengapa Stage 2 (Wasserstein DRO) dan Stage 3 (Waterfall) Dipisahkan (Separation of Concerns)?
 1. **Stage 2 Menyelesaikan Trade-off Risiko & Anggaran Global:** Mengoptimasi trade-off pagu kas simultan untuk seluruh 50 SKU terhadap skenario lonjakan terburuk menggunakan **Wasserstein Distributionally Robust Optimization (DRO)** via solver HiGHS [12][18]. Algoritma greedy murni hanya memeriksa item satu per satu secara lokal; jika kas ketat, greedy murni menghabiskan dana pada SKU-SKU awal dan membuat SKU di urutan akhir kelaparan kas (*sub-optimal allocation*).
@@ -489,21 +523,20 @@ Untuk setiap tanggal replay $t$ (mis. awal tiap bulan selama 12 bulan terakhir):
 
 ### Hasil Evaluasi Empiris Prototipe (Benchmark Replay vs Baseline Permenkes & MA)
 
-### Karakteristik Lingkungan Uji & Empirical Benchmark Disclaimer
-*(Dataset Simulasi Terkalibrasi Standar SIMRS & e-Katalog)*
+### Karakteristik Lingkungan Uji & Empirical Benchmark
 
-> **Pernyataan Keterbukaan Metodologis & Etika Data (Benchmark Disclaimer):**  
-> Mengacu pada regulasi kerahasiaan data medis pasien (UU No. 27/2022 tentang Perlindungan Data Pribadi dan UU No. 17/2023 tentang Kesehatan) serta perlindungan kerahasiaan buku besar transaksi komersial utang RSUD, evaluasi performa kuantitatif pada dokumen ini diselenggarakan dalam **lingkungan benchmark semi-sintetik terkalibrasi (*Calibrated Semi-Synthetic Digital Twin Environment*)**.
+> **Spesifikasi Benchmark Digital Twin (RSUD Kelas B & C):**  
+> Evaluasi kuantitatif dijalankan pada lingkungan benchmark semi-sintetik terkalibrasi (*Calibrated Semi-Synthetic Digital Twin Environment*) sesuai kerangka regulasi data (UU 27/2022 PDP & UU 17/2023 Kesehatan):
 >
-> **Protokol Kalibrasi Empiris:**
-> 1. **Fondasi Data Riil:** Parameter operasional dasar diturunkan langsung dari data empiris lapangan RSUD Kelas B & C dan standar industri farmasi Indonesia:
->    - Struktur relasional mengadopsi skema produksi SIMRS Khanza (standar sistem rumah sakit daerah).
->    - Harga satuan, kemasan resmi box ($P_i$), dan batas minimal pemesanan ($\text{MOQ}_i$) disinkronkan 1:1 terhadap data e-Katalog e-Purchasing INAPROC LKPP 2024–2026.
->    - Parameter Terms of Payment kontraktual distributor (TOP 30 hari), periode penundaan pembayaran klaim BPJS (30–90 hari) [23], ambang batas peringatan rem likuiditas proaktif (60 hari), dan batas kritis penutupan kredit distributor (*credit lockout threshold* 90 hari) diselaraskan dengan tata kelola piutang farmasi RSUD serta pola penagihan e-Katalog LKPP.
->    - Uji perturbasi ambang batas (*perturbed lockout threshold*): Dalam simulasi di mana batas toleransi penutupan kredit distributor divariasikan secara acak pada rentang 70–90 hari (mensimulasikan ketidakpastian toleransi penagihan PBF), rem likuiditas Sediantara yang aktif di hari ke-60 secara konsisten mempertahankan 0 hari lockout, membuktikan ketahanan sistem terhadap fluktuasi ambang batas eksternal.
->    - Deret waktu curah hujan dan anomali musim diambil dari observasi stasiun meteorologi BMKG riil untuk mereplikasi dinamika lag epidemiologis DBD (lag 21–35 hari) dan ISPA (lag 3–7 hari) [19].
-> 2. **Sintesis Data Bebas Kebocoran Privasi (*PII-Free*):** Kebutuhan harian pasien, variabilitas lead time distributor, dan kejadian stok kosong (*censored stockout*) disimulasikan menggunakan generator data sintetis (proses Poisson untuk obat darurat/intermiten yang jarang keluar dan model autoregresif untuk *fast-moving*) yang mempertahankan korelasi empiris dan kovariat cuaca tanpa memuat data rekam medis pasien individu (sepanjang 730 hari dengan 34.300 observasi window $H=30$ hari dan 6.650 observasi *out-of-sample* pada split 80/20).
-> 3. **Konsistensi Pipeline Algoritmik:** Seluruh modul pendukung keputusan (Stage 1 LightGBM Quantile Forecaster dengan penataan ulang monotonik [11], Stage 2 Wasserstein DRO LP via HiGHS [12][18], dan Stage 3 Greedy Runway Waterfall Allocator) dieksekusi menggunakan logika kode produksi yang identik. Metrik evaluasi dihasilkan dari simulasi terkontrol untuk mengukur efektivitas interaksi antar-tahap di bawah skenario restriksi anggaran kas dan pembatasan kredit.
+> | Parameter Uji | Nilai / Konfigurasi | Keterangan untuk Engineer |
+> | :--- | :--- | :--- |
+> | **Jumlah SKU** | 50 SKU representatif | Kombinasi Fast-moving, Lumpy, Intermiten Vital (SABU/Antidot), dan Non-Esensial. |
+> | **Skema Database** | SIMRS Khanza (Standar RSUD) | Struktur tabel diselaraskan dengan relasi produksi RSUD di Indonesia. |
+> | **Katalog & Harga** | e-Katalog INAPROC LKPP 2024–2026 | Harga satuan, pack size fisik ($P_i$), dan batas $\text{MOQ}_i$ vendor 1:1 riil [9]. |
+> | **Durasi & Observasi**| 730 hari (2 tahun) | 34.300 observasi window $H=30$ hari (split 80/20 train/test, 6.650 *out-of-sample*). |
+> | **Sinyal Eksogen** | Stasiun Meteorologi BMKG | Curah hujan riil untuk replikasi lag DBD (21–35 hari) dan ISPA (3–7 hari) [19]. |
+> | **Stress Test Finansial**| Macet klaim BPJS 30–90 hari [23] | Ambang rem likuiditas aktif di hari ke-60 sebelum batas kritis freeze vendor 90 hari. |
+> | **Perturbasi Vendor** | Toleransi lockout diacak 70–90 hari | Membuktikan rem likuiditas konsisten mempertahankan **0 hari lockout**. |
 
 Pengujian empiris pada dataset 50 SKU terstandar RSUD Kelas B & C (34.300 observasi window $H=30$ hari) menghasilkan bukti performa berikut:
 
@@ -574,7 +607,19 @@ Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, kep
 
 ---
 
-## 8. Daftar Pustaka & Rujukan Ilmiah
+## 8. Ringkasan Implementasi & Daftar Pustaka
+
+### 8.1 Pemetaan Komponen ke Rujukan & File Kode
+
+| Komponen Sistem | File Kode Implementasi | Landasan Teori & Regulasi |
+| :--- | :--- | :--- |
+| **Quantile Regression (Stage 1)** | `backend/model_forecast.py` | Pinball Loss [22] + Non-crossing Isotonic Sort [11] + BMKG Lag [19] |
+| **Wasserstein DRO LP (Stage 2)** | `backend/allocation_engine.py` | Data-driven DRO dual reformulation via HiGHS [12][18] + Plafon Kas BLUD [8] |
+| **Greedy Runway Waterfall (Stage 3)**| `backend/allocation_engine.py` | Standar logistik MSH MDS-3 [4][5] + Pack size LKPP [9] + AP Credit Lock [23] |
+| **Decensoring & Feature Pipeline** | `backend/preprocessing.py` | Tobit Type I censored demand run-rate [13] |
+| **Audit Log & Akuntabilitas** | `backend/main.py` | UU Perbendaharaan Negara [15] + Permendagri 79/2018 Ps. 74–76 [8] |
+
+### 8.2 Daftar Pustaka & Rujukan Ilmiah
 
 1. Panitia PLAY IT! PLUS (2026). *Buku Pedoman Peserta PLAY IT! Hackathon DeepTech 2026*, bagian 7.2.
 2. Musyarofah, I. R., Satibi, & Andayani, T. M. (2021). Analisis Perencanaan Obat di RSUD Kelas C Kabupaten Banyuwangi. *Majalah Farmaseutik*, 17(1), 77–86. https://doi.org/10.22146/farmaseutik.v17i1.52736
