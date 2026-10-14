@@ -67,7 +67,7 @@ Sediantara merespons langsung ketiga friksi inti tema hackathon:
 
 | No | Friksi Lapangan RSUD | Masalah Cara Manual (Excel/SIMRS) | Solusi Sistem Sediantara |
 | :---: | :--- | :--- | :--- |
-| **1** | **Aturan Pagu Kas BLUD, Kuota RKO & Freeze Kredit PBF (Klaim BPJS Macet)** | Excel/metode konsumsi manual menghitung kebutuhan murni tanpa sadar kas cair bulanan BLUD terbatas (Permendagri 79/2018 Ps. 74–75) [8], ada kuota Rencana Kebutuhan Obat (RKO/RBA) tahunan, dan ancaman penutupan sepihak kredit distributor PBF (*credit lock*) jika klaim pending BPJS melampaui jatuh tempo kontraktual (TOP 30 hari) hingga menyentuh batas kritis penagihan (90 hari) $\rightarrow$ apoteker memotong manual pakai feeling sehingga obat vital terpotong atau akun RSUD di-freeze distributor. | Batasan ganda (*dual budget constraint*) terintegrasi pengaman kredit PBF: verifikasi $\text{Kebutuhan Bersih} \le \text{Sisa Kuota RKO}$, lalu alokasikan bertahap di bawah plafon kas cair bulanan BLUD (dasar Vital ➔ dasar Esensial ➔ buffer V ➔ buffer E ➔ Non-Esensial) [4][8] dengan rem likuiditas proaktif (pada umur tagihan 60 hari) yang mencegah akumulasi utang melampaui batas embargo distributor (90 hari). |
+| **1** | **Aturan Pagu Kas BLUD, Kuota RKO & Freeze Kredit PBF (Klaim BPJS Macet)** | Excel/metode konsumsi manual menghitung kebutuhan murni tanpa sadar kas cair bulanan BLUD terbatas (Permendagri 79/2018 Ps. 61 & Ps. 74–75) [8], ada kuota Rencana Kebutuhan Obat (RKO/RBA) tahunan, dan ancaman penutupan sepihak kredit distributor PBF (*credit lock*) jika klaim pending BPJS melampaui jatuh tempo kontraktual (TOP 30 hari) hingga menyentuh batas kritis penagihan (90 hari) $\rightarrow$ apoteker memotong manual pakai feeling sehingga obat vital terpotong atau akun RSUD di-freeze distributor. | Batasan ganda (*dual budget constraint*) terintegrasi pengaman kredit PBF: verifikasi $\lceil \text{Kebutuhan Bersih} / P_i \rceil \le \text{Sisa Kuota RKO (pack)}$, lalu alokasikan bertahap di bawah plafon kas cair bulanan BLUD (dasar Vital ➔ dasar Esensial ➔ buffer V ➔ buffer E ➔ Non-Esensial) [4][8] dengan rem likuiditas proaktif (pada umur tagihan 60 hari) yang mencegah akumulasi utang melampaui batas embargo distributor (90 hari). |
 | **2** | **Data Kosong (*Censored Demand*) & Lonjakan Cuaca BMKG (DBD/ISPA)** | Obat kosong 5 hari dicatat SIMRS sebagai konsumsi = 0 $\rightarrow$ moving average mengira obat tidak laku $\rightarrow$ prediksi turun (*death spiral*). Selain itu, anomali iklim BMKG (hujan ekstrem) memicu lonjakan kasus musiman (DBD dengan lag klinis 21–35 hari, puncak lag-28; ISPA dengan lag 3–7 hari) yang luput dari model historis sederhana. | Kebutuhan pada hari `is_stockout` diimputasi via median *run-rate* 7 hari sebelum kosong; lonjakan obat pengganti dikenali lewat kelompok substitusi Formularium RS (Permenkes 72/2016) [7]; sinyal cuaca BMKG dihubungkan via lag klinis epidemiologis untuk mengantisipasi surge kebutuhan cairan infus (RL/Asering) dan nebulizer sebelum pasien membludak. |
 | **3** | **Tata Kelola e-Purchasing LKPP & Distributor** | Pengadaan RSUD wajib melalui Pejabat Pembuat Komitmen (PPK) & Pejabat Pengadaan (PP) via e-Purchasing LKPP (Perpres 16/2018 jo. Perpres 12/2021 jo. Perpres 46/2025 & Keputusan Kepala LKPP 122/2022) [9]. Pembelian wajib kelipatan box resmi dan memenuhi MOQ $\rightarrow$ hitungan manual satuan sering ditolak PP/PBF atau memicu pembulatan boros. | Draf Usulan Pembelian / Defekta siap ekspor CSV untuk PP/PPK via e-Purchasing LKPP: tervalidasi kelipatan box resmi ($P_i$), ID komoditas LKPP, batas MOQ terhadap pagu kas cair dan kuota RKO, serta dilengkapi dekomposisi telaah staf farmasi yang dapat dipertanggungjawabkan saat audit BPK. |
 
@@ -85,11 +85,11 @@ Sistem membaca data analitik secara non-blokir via replika baca (*read-replica*)
 | `dim_location` | Dimensi | `location_id` | — | `location_id`, `location_name`, `location_type`, `is_warehouse`, `internal_lead_time_days` |
 | `dim_ven_policy` | Dimensi | `ven_category` | — | `ven_category`, `shortage_cost`, `excess_cost` |
 | `dim_hospital_context` | Dimensi | `tx_date` | — | `tx_date`, `inpatient_bor`, `outpatient_visits`, `emergency_visits`, `is_holiday`, `rainfall_mm` |
-| `dim_budget_allocation`| Dimensi | `budget_period` | — | `budget_period`, `budget_source`, `budget_limit` |
+| `dim_budget_allocation`| Dimensi | `budget_period`, `budget_source` | — | `budget_period`, `budget_source`, `budget_limit` |
 | `fct_prescription_dispensing` | Fakta | `tx_date`, `item_id`, `location_id` | `tx_date` $\rightarrow$ `dim_hospital_context`, `item_id` $\rightarrow$ `dim_drug_master`, `location_id` $\rightarrow$ `dim_location` | `tx_date`, `item_id`, `location_id`, `qty_prescribed`, `qty_dispensed`, `is_unmet_or_substituted`, `is_stockout` |
 | `fct_inventory_snapshot`| Fakta | `snapshot_date`, `item_id`, `location_id`, `batch_number` | `item_id` $\rightarrow$ `dim_drug_master`, `location_id` $\rightarrow$ `dim_location` | `snapshot_date`, `item_id`, `location_id`, `batch_number`, `expiry_date`, `current_stock`, `emergency_trolley_stock`, `is_quarantine` |
-| `fct_purchase_orders` | Fakta | `po_id`, `item_id` | `item_id` $\rightarrow$ `dim_drug_master`, `budget_period` $\rightarrow$ `dim_budget_allocation` | `po_id`, `item_id`, `order_date`, `expected_date`, `received_date`, `order_qty_pack`, `total_line_rupiah`, `supplier_pbf`, `budget_period`, `status`, `payment_terms_days` |
-| `fct_override_log` | Fakta | `override_id` | `item_id` $\rightarrow$ `dim_drug_master`, `budget_period` $\rightarrow$ `dim_budget_allocation` | `override_id`, `item_id`, `budget_period`, `run_date`, `recommended_box`, `final_box`, `reason` |
+| `fct_purchase_orders` | Fakta | `po_id`, `item_id` | `item_id` $\rightarrow$ `dim_drug_master`, `(budget_period, budget_source)` $\rightarrow$ `dim_budget_allocation` | `po_id`, `item_id`, `order_date`, `expected_date`, `received_date`, `order_qty_pack`, `total_line_rupiah`, `supplier_pbf`, `budget_period`, `budget_source`, `status`, `payment_terms_days` |
+| `fct_override_log` | Fakta | `override_id` | `item_id` $\rightarrow$ `dim_drug_master`, `(budget_period, budget_source)` $\rightarrow$ `dim_budget_allocation` | `override_id`, `item_id`, `budget_period`, `budget_source`, `run_date`, `user_id`, `recommended_box`, `final_box`, `reason`, `created_at` |
 
 ### Aturan Pengolahan Data & Ekstraksi SIMRS
 
@@ -126,11 +126,12 @@ Semua rekomendasi pemesanan obat wajib mematuhi 7 aturan operasional rumah sakit
 
 2. **Days of Cover (DoC) & Alert Depo:**
    - Mengukur berapa hari stok fisik di depo (IGD, Rawat Jalan, Rawat Inap) mampu bertahan melayani resep.
-   - Formula: `DoC = Stok Pelayanan / Laju Konsumsi Harian`.
-   - **Isolasi Segel Troli IGD:** Stok di dalam troli emergensi yang tersegel dieksklusikan dari perhitungan stok pelayanan (`Stok Pelayanan = max(0, Stok Fisik - emergency_trolley_stock)`), agar stok terkunci tidak menunda penyalaan alert.
+   - Formula: `DoC = Stok Pelayanan / max(Laju Konsumsi Harian, vital_min_stock / H, 1e-6)`.
+   - *Catatan Laju Konsumsi Harian:* Dihitung dari median dispensing harian pada hari-hari non-kosong (`is_stockout == false`) selama 7 hari aktif terakhir guna mencegah fenomena *death spiral* (DoC semu akibat stok kosong).
+   - **Isolasi Segel Troli IGD:** Stok di dalam troli emergensi yang tersegel dieksklusikan dari perhitungan stok pelayanan (`Stok Pelayanan = max(0, sum(current_stock valid) - emergency_trolley_stock)`), agar stok terkunci tidak menunda penyalaan alert.
    - **Tingkat Alert:**
-     - **Status Merah:** `DoC < Lead Time Internal Gudang` (Stok keburu habis sebelum amprah gudang tiba; picu mutasi cito atau pinjam antar-depo).
-     - **Status Kuning:** `DoC < Lead Time + 3 Hari` (Batas waktu aman untuk mengajukan amprah reguler ke gudang induk).
+     - **Status Merah:** `0 <= DoC <= Lead Time Internal Gudang` (Stok keburu habis sebelum amprah gudang tiba; picu mutasi cito atau pinjam antar-depo). Jika stok gudang induk kosong, alert otomatis dinaikkan ke darurat eksternal.
+     - **Status Kuning:** `Lead Time < DoC <= Lead Time + 3 Hari` (Batas waktu aman untuk mengajukan amprah reguler ke gudang induk).
 
 3. **Lantai Pengaman Obat Vital (Safety Floor):**
    - Obat darurat/vital yang jarang dipakai (intermiten, misal: Serum Anti Bisa Ular / SABU Biofarma) rawan diprediksi 0 oleh model ML karena sering nihil transaksi harian (*zero-inflation*).
@@ -138,13 +139,15 @@ Semua rekomendasi pemesanan obat wajib mematuhi 7 aturan operasional rumah sakit
 
 4. **Kebutuhan Bersih Pembelian (Net Reorder):**
    - Formula: `Kebutuhan Bersih = max(0, Target Kebutuhan - Stok Fisik Gudang - Pesanan di Jalan)`.
-   - Jika `Stok Fisik + Pesanan Tiba < Kebutuhan Lead Time`, sistem menyalakan *early warning stockout* untuk memicu pengiriman ekspres atau bon pinjam-mengganti persediaan darurat antar-RSUD (Permenkes 72/2016 jo. PerBPOM 24/2021) [16].
+   - Jika `Stok Fisik + Pesanan Tiba < Kebutuhan Lead Time`, sistem menyalakan *early warning stockout* untuk memicu pengiriman ekspres atau bon pinjam-mengganti persediaan darurat antar-fasyankes (PerBPOM 24/2021 Ps. 27–29 jo. Permenkes 72/2016) [16].
 
 5. **Aturan Kemasan Box & Batas MOQ e-Katalog:**
    - Pembelian via e-Purchasing LKPP wajib mematuhi kelipatan kemasan kardus resmi vendor ($P_i$).
    - Formula: `Jumlah Box = ceil(Kebutuhan Bersih / Isi per Box)`.
-   - Jika hasil hitungan berada di bawah ambang minimum order distributor (`Jumlah Box < MOQ`), kuantitas otomatis dinaikkan ke batas `MOQ`.
-   - Pengecekan kuota RKO tahunan: jika sisa kuota berada di antara 0 dan MOQ (`0 < Sisa RKO < MOQ`), sistem memicu alert adendum penambahan kuota RKO ke Kemenkes.
+   - Jika hasil hitungan berada di bawah ambang minimum order distributor (`Jumlah Box < MOQ`), kuantitas dinaikkan ke batas `MOQ` selama sisa kuota RKO mencukupi.
+   - Pengecekan kuota RKO tahunan:
+     - Jika `Usulan Box > Sisa RKO`, kuantitas di-clamp ke batas `Sisa RKO` dan memicu alert adendum RKO ke Kemenkes via aplikasi e-Monev Obat [20].
+     - Jika `0 < Sisa RKO < MOQ`, sistem menahan pemesanan obat non-vital (`status: BLOCKED_RKO_MOQ_DEADLOCK`) guna mencegah audit temuan BPK atas pembelian melampaui kuota, serta memicu alert adendum percepatan kuota ke Dinkes/Kemenkes. Untuk obat Vital, pengadaan diarahkan melalui mekanisme SPK darurat langsung BLUD (Permendagri 79/2018 Ps. 76) [8].
 
 6. **Plafon Kas Cair BLUD (Permendagri 79/2018 Ps. 74–75) [8]:**
    - Formula: `Pagu Tersedia = budget_limit - Total PO Periode Berjalan yang Terbit`.
@@ -203,22 +206,29 @@ Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuh
 - **I/O & Spesifikasi Teknis di Kode (`backend/allocation_engine.py`):**
   ```python
   # Input Interface:
-  # - quantiles: dict {item_id: {'p50': float, 'p80': float, 'p90': float}}
+  # - scenarios: np.ndarray shape (K, M) (K=3: P50, P80, P90 dari Stage 1)
   # - budget_limit: float (sisa pagu kas cair BLUD)
-  # - ven_weights: dict {'V': 100.0, 'E': 10.0, 'N': 1.0}
-  # - unit_prices: dict {item_id: float}
-  # - current_stocks: dict {item_id: float}
+  # - ven_weights: np.ndarray shape (M,) (V=100.0, E=10.0, N=1.0)
+  # - unit_prices: np.ndarray shape (M,)
+  # - current_stocks: np.ndarray shape (M,)
+  # - vital_min_stocks: np.ndarray shape (M,)
+  # - epsilon: float (Wasserstein uncertainty radius)
   #
   # Output:
   # - target_units: dict {item_id: float (x_i^* optimal kontinu)}
   # - solver_status: 'optimal' | 'infeasible'
   ```
 
-- **Cara Kerja Solver LP (3 Aturan Kunci):**
+- **Cara Kerja Solver LP (3 Aturan Kunci & Linearisasi Standar):**
   1. **Lantai Pengaman Vital:** Menjamin stok obat Vital minimal menyentuh lantai aman darurat (`vital_min_stock` KFT) [7].
   2. **Bagi Kas Berbasis Risiko Terburuk (DRO):** Mendistribusikan sisa kas ke obat Esensial yang paling rawan lonjakan kasus agar dampak klinis ke pasien seminimal mungkin [12][18].
-  3. **Hard Constraint Pagu Kas:** Total nilai belanja tidak boleh melampaui sisa kas BLUD [8]:
-     $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
+  3. **Linearized Constraint Pagu Kas (HiGHS Dual LP Formulation):**
+     Menghindari fungsi non-linear $\max(0, x_i - \text{Stok}_i)$ dengan memperkenalkan variabel riil surplus pembelian $u_i \ge 0$:
+     $$u_i \ge x_i - \text{Stok}_i, \quad u_i \ge 0, \quad \forall i \in \{1,\dots,M\}$$
+     $$\sum_{i=1}^{M} \text{Harga}_i \times u_i \le \text{Pagu Kas BLUD}$$
+     Fungsi dual epigraph loss ditransformasikan menjadi:
+     $$\min_{x, u, \lambda, s, v} \lambda \epsilon + \frac{1}{K}\sum_{k=1}^K s_k$$
+     $$\text{s.t.} \quad s_k \ge \sum_{i=1}^M v_{i,k}, \quad v_{i,k} \ge w_i(\hat{\xi}_i^{(k)} - x_i), \quad v_{i,k} \ge 0, \quad \lambda \ge \max_i w_i$$
 
 - **Output:** Target angka kebutuhan ideal per obat ($x_i^*$, angka desimal kontinu) yang sudah lolos uji pagu kas dan siap diubah menjadi kemasan fisik box di Stage 3.
 - **Performa:** Selesai dalam tempo **< 10 milidetik di CPU standar** (tanpa butuh GPU).
@@ -287,9 +297,9 @@ Setiap obat dikategorikan berdasarkan dua dimensi:
   - **E (Esensial):** Obat terapi utama penyakit terbanyak (mis. Antibiotik, Insulin, Cairan Infus RL).
   - **N (Non-Esensial):** Obat penunjang / suplemen (mis. Vitamin C, Vitamin B Kompleks).
 - **Kelas ABC (Penyerapan Nilai Anggaran):**
-  - **Kelas A:** 20% item obat yang menyerap 80% total anggaran belanja RS.
-  - **Kelas B:** Item menengah yang menyerap 15% total anggaran.
-  - **Kelas C:** 80% item murah yang hanya menyerap 5% total anggaran.
+  - **Kelas A (80% serapan belanja kumulatif):** ~10%–20% SKU bernilai rupiah tinggi (misal: cairan infus RL/NaCl, antibiotik paten).
+  - **Kelas B (15% serapan belanja kumulatif):** ~10%–20% SKU bernilai belanja sedang.
+  - **Kelas C (5% serapan belanja kumulatif):** ~60%–80% SKU bernilai belanja rendah.
 
 Berikut tabel matriks keputusan operasional gabungan ABC–VEN:
 
@@ -303,13 +313,13 @@ Berikut tabel matriks keputusan operasional gabungan ABC–VEN:
 
 Jika kas rumah sakit tidak mencukupi untuk mendanai seluruh kebutuhan ideal, sistem membagi anggaran melalui **5 Lapisan Waterfall** secara berurutan:
 
-| Lapisan Prioritas | Yang Didanai | Target Kuantil | Perilaku Saat Kas Terbatas |
+| Lapisan Prioritas | Yang Didanai | Target Kuantil / Batas | Perilaku Saat Kas Terbatas |
 | :---: | :--- | :---: | :--- |
-| **1** | **Dasar Vital** | P50 (Median) | **Wajib Lolos 100%:** Jika kas gagal mendanai, sistem memicu alarm darurat (`INFEASIBLE`). |
-| **2** | **Dasar Esensial** | P50 (Median) | Didanai setelah Lapisan 1 selesai. Pemenuhan parsial jika kas tersisa menipis. |
-| **3** | **Buffer Vital** | $x_i^*$ (DRO Target $\ge$ P90) | Cadangan darurat untuk lonjakan kasus/KLB. Plafon target dipatok dari solusi optimal Stage 2. |
-| **4** | **Buffer Esensial** | $x_i^*$ (DRO Target $\ge$ P80) | Buffer pemenuhan rutin. Dipotong bertahap dengan urutan efisiensi kas: **Kelas A ➔ B ➔ C** (prioritas pendanaan **C ➔ B ➔ A**). |
-| **5** | **Non-Esensial** | P50 (Baseline) | Suplemen/vitamin. Dialokasikan paling akhir hanya jika kas masih bersisa (urut **C ➔ B ➔ A**). |
+| **1** | **Dasar Vital** | $\max(\text{P50}, \texttt{vital\_min\_stock})$ | **Wajib Lolos 100%:** Mengamankan obat rutin dan intermiten (SABU/Antidot). Jika kas gagal mendanai, sistem memicu alarm darurat (`INFEASIBLE`). |
+| **2** | **Dasar Esensial** | P50 (Median) + $\Delta Q_{\text{cuaca}}$ | Didanai setelah Lapisan 1 selesai. Pemenuhan parsial jika kas tersisa menipis. Proyeksi wabah cuaca kebal potong. |
+| **3** | **Buffer Vital** | $x_i^*$ (DRO Target $\ge$ P90) | Cadangan darurat untuk lonjakan kasus/KLB. Plafon target dipatok dari solusi optimal Stage 2. Kebal rem utang vendor. |
+| **4** | **Buffer Esensial** | $x_i^*$ (DRO Target $\ge$ P80) | Buffer pemenuhan rutin. Dibagi ke dalam sub-lapisan bertingkat: **4a (Kelas C) ➔ 4b (Kelas B) ➔ 4c (Kelas A)**. Urutan antrean runway hanya berlaku di dalam sub-lapisan yang sama. Buffer Kelas A ditahan jika utang vendor $\ge 60$ hari. |
+| **5** | **Non-Esensial** | P50 (Baseline) | Suplemen/vitamin. Dialokasikan paling akhir hanya jika kas masih bersisa (urut sub-lapisan **C ➔ B ➔ A**). Ditahan jika utang vendor $\ge 60$ hari. |
 
 **Aturan Penentuan Antrean Pembelian (Runway Metric):**
 - **Metrik Runway (Sisa Hari Ketahanan Stok):**
@@ -347,12 +357,16 @@ Kondisi `INFEASIBLE` terjadi ketika sisa kas cair BLUD tidak mampu mendanai kebu
      "is_feasible": false,
      "status": "INFEASIBLE",
      "deficit_vital_rupiah": 14500000,
-     "unfunded_vital_skus": ["V-01", "V-04"]
+     "unfunded_vital_skus": ["V-01", "V-04"],
+     "allocated_boxes": {"V-01": 5}
    }
    ```
 2. **Prosedur Tindak Lanjut Regulasi:**
-   - **Nota Fleksibilitas BLUD:** Sistem menerbitkan draf telaah belanja fleksibilitas melampaui pagu untuk pengeluaran darurat kesehatan (Permendagri 79/2018 Ps. 74 ayat (1), (5), (6) jo. Ps. 76 ayat (2)) [8].
-   - **Bon Pinjam Antar-Fasyankes:** Sistem menyusun draf surat resmi peminjaman persediaan darurat antar-RSUD atau ke Dinas Kesehatan setempat (Permenkes 72/2016 jo. PerBPOM 24/2021) [16].
+   - **Nota Fleksibilitas & Eskalasi Kas BLUD:** 
+     1. Jika pendapatan melampaui target, sistem menerapkan Ambang Batas Fleksibilitas RBA (Permendagri 79/2018 Ps. 74 ayat (2) & Ps. 75 ayat (6)) [8].
+     2. Jika kas benar-benar defisit akibat klaim macet, sistem menyusun draf pergeseran rincian belanja operasional (Ps. 61 ayat (5)), usulan dispensasi belanja darurat ke Kepala Daerah (Ps. 74 ayat (5)), atau usulan tambahan anggaran APBD ke PPKD (Ps. 74 ayat (6)) [8].
+     3. Untuk kebutuhan mendesak yang terkunci di e-Katalog, RSUD dapat mengaktifkan pengadaan langsung darurat berbasis Perkada BLUD (Ps. 76 ayat (2) jo. Ps. 77) [8].
+   - **Penyaluran Obat Darurat Antar-Fasyankes:** Sistem menyusun draf surat resmi penyaluran/bon pinjam-mengganti persediaan darurat antar-RSUD atau ke Dinas Kesehatan setempat (PerBPOM 24/2021 Ps. 27–29 jo. Permenkes 72/2016) [16]. Sesuai UU 1/2004 Ps. 3 ayat (3) [15], sistem mengunci penerbitan PO reguler tanpa ketersediaan kas guna melindungi PPK dari pelanggaran perbendaharaan negara.
 
 ---
 
@@ -373,6 +387,7 @@ flowchart LR
         D2["Stok Fisik Gudang & Depo (Batch, Kedaluwarsa, Non-Karantina)"]
         D3["Katalog LKPP & Kebijakan (Pack, MOQ, Pagu BLUD, Kuota RKO, VEN)"]
         D4["Konteks Operasional (BOR, Kunjungan Poli, Musim/Cuaca BMKG)"]
+        D5["AP Aging Piutang Vendor PBF (Umur Faktur TOP 30–90 Hari)"]
     end
 
     subgraph Analytics ["Engine Analitik & Prediksi (Stage 1)"]
@@ -380,7 +395,7 @@ flowchart LR
         PRE["Decensoring Permintaan (Imputasi Stockout) & Stok Efektif FEFO"]
         
         RUNRATE_DEPO["Kalkulasi Median Run-Rate Depo<br/>(DoC Harian IGD, RJ, RI)"]
-        LGB_RS["LightGBM Kuantil Agregat RS (L+R)<br/>(Tau = 0.5, 0.8, 0.9 + BMKG Climate Lag)"]:::ai
+        LGB_RS["Stage 1: LightGBM Kuantil Agregat RS (L+R)<br/>(Tau = 0.5, 0.8, 0.9 + BMKG Climate Lag)"]:::ai
         SHAP["TreeSHAP Feature Attribution Engine<br/>(Dekomposisi Driver Permintaan: BOR, Cuaca, Substitusi)"]:::ai
         
         ALERT["Alert Depo: Hari Ketahanan Stok vs Lead Time Internal"]
@@ -393,37 +408,33 @@ flowchart LR
 
     subgraph Allocation ["Engine Alokasi & Pengadaan (Stage 2 & 3)"]
         direction TB
-        LP_OPT["Stage 2: Wasserstein DRO Target Optimizer<br/>(HiGHS Dual LP &lt; 10ms &amp; Penjaga Kas BLUD)"]:::ai
-        CALC["Hitung Kebutuhan Bersih, Safety Floor & Konversi Box MOQ"]
-        CEK{"Biaya &lt;= Pagu Kas, RKO & Limit PBF?"}:::warn
-        FULL["Usulan Beli Penuh (Ideal)"]:::success
-        WATERFALL["Stage 3: Greedy Waterfall Box Bi<br/>(Alokasi Bertahap VEN &amp; Rem Likuiditas)"]:::warn
-        ABC["Klasifikasi ABC (nilai pakai 365 hari x harga)"]
+        ABC["Klasifikasi ABC Pareto (Nilai Belanja Tahunan x Harga)"]
+        LP_OPT["Stage 2: Wasserstein DRO Target Optimizer<br/>(HiGHS Dual LP &lt; 10ms &amp; Penjaga Pagu Kas BLUD)"]:::ai
+        STAGE3["Stage 3: Greedy Runway Waterfall Allocator<br/>(Prioritas VEN, Konversi Box Pi, MOQ, Kuota RKO &amp; AP Credit Lock)"]:::warn
         
         LGB_RS --> LP_OPT
-        LP_OPT --> CALC
-        CALC --> CEK
-        CEK -- "Ya" --> FULL
-        CEK -- "Tidak" --> WATERFALL
-        ABC --> WATERFALL
+        LP_OPT --> STAGE3
+        ABC --> STAGE3
     end
 
     subgraph Execution ["Tata Kelola & Eksekusi"]
         direction TB
-        EXEC["Review & Override Apoteker (Audit Trail) → Draf CSV LKPP"]
+        EXEC["Review & Override Apoteker (Audit Trail) → Draf CSV LKPP"]:::success
     end
 
     D1 --> PRE
     D2 --> PRE
-    D3 --> CALC
-    PRE --> ABC
+    D2 --> LP_OPT
+    D2 --> STAGE3
+    D3 --> LP_OPT
+    D3 --> STAGE3
     D4 --> LGB_RS
+    D5 --> STAGE3
+    PRE --> ABC
     
-    SHAP --> EXEC
     ALERT --> EXEC
-    
-    FULL --> EXEC
-    WATERFALL --> EXEC
+    SHAP --> EXEC
+    STAGE3 --> EXEC
 ```
 
 ### 5.2 Arsitektur Prototipe Hackathon (FastAPI Backend + Next.js Frontend)
@@ -443,9 +454,9 @@ flowchart LR
     subgraph BackendAPI ["FastAPI Service (backend/main.py)"]
         direction TB
         PIPE["Decensoring &amp; Feature Pipeline (preprocessing.py)"]
-        LGB["LightGBM Quantile Forecaster + TreeSHAP (model_forecast.py)"]:::ai
-        LP_OPT["Stage 2: Wasserstein DRO Target Optimizer (allocation_engine.py)"]:::ai
-        ALLOC["Stage 3: Engine Alokasi VEN, Credit Guard &amp; Waterfall (allocation_engine.py)"]:::warn
+        LGB["Stage 1: LightGBM Quantile + TreeSHAP (model_forecast.py)"]:::ai
+        LP_OPT["Stage 2: Wasserstein DRO LP HiGHS (allocation_engine.py)"]:::ai
+        ALLOC["Stage 3: Greedy Runway Waterfall + AP Credit Guard (allocation_engine.py)"]:::warn
         API["REST Endpoints:<br/>• /api/kpi • /api/depo-alerts • /api/reorder-defekta"]:::success
         
         PIPE --> LGB
@@ -458,18 +469,21 @@ flowchart LR
         direction TB
         UI1["<b>Hero Banner &amp; 4 Sparkline KPI Cards</b><br/>(Total Value, Active Items, Depo Stockout, Calibration)"]:::ui
         UI2["<b>Visual Analytics</b><br/>(Multi-Line Inventory Trend &amp; Donut by VEN/ABC)"]:::ui
-        UI3["<b>Defekta Interactive Table</b><br/>(Segmented Waterfall Progress Bar, 3 Presets &amp; LKPP CSV)"]:::ui
+        UI3["<b>Defekta Interactive Table</b><br/>(Segmented Waterfall Progress Bar, 3 Presets &amp; Override Log)"]:::ui
+        CSV["<b>Ekspor Draf PO LKPP (CSV)</b><br/>Format resmi e-Purchasing e-Katalog"]:::success
         
         UI1 --> UI2
         UI2 --> UI3
+        UI3 --> CSV
     end
 
-    DATA -->|"Ingesti Historis & BMKG"| PIPE
-    DATA -->|"Katalog Pack, MOQ & Sisa RKO"| ALLOC
+    DATA -->|"Historis Resep, Stok & Sinyal BMKG"| PIPE
+    DATA -->|"Pagu Kas BLUD & Bobot VEN"| LP_OPT
+    DATA -->|"Pack Size Pi, MOQ, Sisa RKO & AP Aging"| ALLOC
     API -->|"JSON Feed KPI & Trend"| UI1
     API -->|"JSON Feed Depo Alerts"| UI2
     API -->|"JSON Feed Defekta & Waterfall"| UI3
-    UI3 -.->|"POST Parameter Preset & Pagu Kas"| API
+    UI3 -.->|"POST Parameter Preset, Pagu Kas & Override"| API
 ```
 
 | Modul | Visi Lengkap (§5.1) | Prototipe Hackathon (§5.2) | Rasionalisasi Pemangkasan |
@@ -557,10 +571,10 @@ Pengujian empiris pada dataset 50 SKU terstandar RSUD Kelas B & C (34.300 observ
 
 Pengujian komparatif menyeluruh pada siklus 360 hari (50 SKU RSUD) mencakup performa dasar dan skenario ekstrem simultan (**Lonjakan Wabah Cuaca BMKG + Penundaan Pembayaran Klaim BPJS 90 Hari**):
 
-| Parameter Evaluasi | Baseline A<br>Permenkes 72/2016 jo. Juknis 2019<br>*(Static Safety Stock 20%)* | Baseline B<br>Sediantara Heuristik<br>*(LightGBM + Greedy Waterfall)* | Baseline C<br>Sediantara Produksi<br>*(Pipeline 3-Tahap: LightGBM + Wasserstein DRO LP + Greedy Waterfall)* | Delta C vs A (Relatif) | Delta C vs B (Relatif) |
+| Parameter Evaluasi | Baseline A<br>Permenkes 72/2016 jo. Juknis 2019<br>*(Static Safety Stock 20%)* | Baseline B<br>Sediantara Heuristik<br>*(LightGBM + Greedy Waterfall)* | Baseline C<br>Sediantara Produksi<br>*(Pipeline 3-Tahap: LightGBM + Wasserstein DRO LP + Greedy Waterfall)* | Selisih C vs A | Selisih C vs B |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Vital Fill Rate (%)** | 41,00% | 39,50% | **93,50%** | +52,50% *(Proteksi Penuh)* | +54,00% *(Proteksi Penuh)* |
-| **Essential Fill Rate (%)** | 48,20% | 44,60% | **91,80%** | +43,60% | +47,20% |
+| **Vital Fill Rate (%)** | 41,00% | 39,50% | **93,50%** | +52,50 pp *(+128,1% rel)* | +54,00 pp *(+136,7% rel)* |
+| **Essential Fill Rate (%)** | 48,20% | 44,60% | **91,80%** | +43,60 pp *(+90,5% rel)* | +47,20 pp *(+105,8% rel)* |
 | **Vendor Credit Freeze (Lockout Days)** | 42 Hari | 48 Hari | **0 Hari** | -42 Hari *(Nol Hari Lockout)* | -48 Hari *(Nol Hari Lockout)* |
 | **Kekosongan Obat ICU / Anestesi akibat Utang Infus** | 35 Hari | 41 Hari | **0 Hari** | -35 Hari *(Cross-contamination lenyap)* | -41 Hari *(Cross-contamination lenyap)* |
 | **Expired Stock / Wastage Cost (IDR)** | Rp 23.450.000 | Rp 14.820.000 | **Rp 1.150.000** | -Rp 22.300.000 (-95,1%) | -Rp 13.670.000 (-92,2%) |
@@ -573,7 +587,7 @@ Pengujian komparatif menyeluruh pada siklus 360 hari (50 SKU RSUD) mencakup perf
 
 *Uji Konsistensi Performa (Model Robustness):*
 1. **Per-SKU Consistency:** Model Sediantara mengungguli baseline Permenkes di seluruh 50 SKU uji (paired test $p < 0.001$), membuktikan keunggulan merata di semua jenis obat, bukan bias item bervolume besar saja.
-2. **Stabilitas Error Time-Series:** Uji ketahanan waktu (Diebold-Mariano test [14][17]) mencatat nilai statistik $t = +4.01$ ($p < 0.001$), membuktikan penurunan error Sediantara stabil di sepanjang horizon waktu dibanding model heuristik.
+2. **Stabilitas Error Time-Series:** Uji ketahanan waktu (Diebold-Mariano test dengan koreksi HLN [14][17] menggunakan konvensi diferensial $d_t = L_{\text{Sediantara}} - L_{\text{Baseline}}$) mencatat nilai statistik $t = -4.01$ ($p < 0.001$), membuktikan penurunan error Sediantara konsisten signifikan sepanjang horizon waktu dibanding model heuristik ($H_1: \mathbb{E}[d_t] < 0$).
 
 *Mekanisme Pencegahan Cross-Category Contamination:*  
 Sesuai praktik tata kelola distribusi farmasi di RSUD [23], distributor farmasi nasional (Pedagang Besar Farmasi / PBF utama) mengunci akun kredit berdasarkan entitas RSUD (NPWP/Customer ID), bukan per kategori obat. Pada Baseline A & B, utang cairan infus melonjak melebihi batas kritis 90 hari, memicu distributor membekukan pengiriman obat anestesi OK dan obat emergensi ICU. Sediantara Baseline C secara presisi mengerem buffer cairan infus dan memotong obat Non-Esensial begitu utang menginjak umur 60 hari, menjaga saldo utang di bawah batas kritis penutupan kredit tanpa menyentuh obat Vital.
@@ -588,10 +602,10 @@ Untuk mengurai kontribusi masing-masing komponen pada Baseline C (apakah keunggu
 
 **Dekomposisi Additive Waterfall:**
 Komponen penentu usulan akhir dihitung berurutan agar transparan saat audit belanja daerah (UU 1/2004 [15] & Permendagri 79/2018 [8]):
-- $Q_{i,\text{dasar}}$: Prediksi pemakaian normal (P50).
-- $\Delta Q_{i,\text{cuaca}}$: Tambahan unit akibat sinyal cuaca BMKG (DBD lag 21–35 hari, ISPA lag 3–7 hari) [19].
-- $\Delta Q_{i,\text{robust}}$: Tambahan pengaman hasil optimasi Stage 2 Wasserstein DRO Dual LP ($x_i^* - Q_{i,\text{dasar}} - \Delta Q_{i,\text{cuaca}}$) [12][18].
-- $\Delta Q_{i,\text{likuiditas}}$: Pemotongan buffer non-vital jika risiko penutupan kredit PBF terdeteksi pada hari ke-60 [23]. Obat Vital tidak pernah dipotong ($\Delta Q_{V,\text{likuiditas}} = 0$).
+- $Q_{i,\text{dasar}}$: Prediksi pemakaian normal (P50) dari LightGBM.
+- $\Delta Q_{i,\text{cuaca}}$: Komponen atribusi TreeSHAP dari fitur lag iklim BMKG (DBD lag 21–35 hari, ISPA lag 3–7 hari) [19].
+- $\Delta Q_{i,\text{robust}}$: Tambahan pengaman hasil optimasi Stage 2 Wasserstein DRO Dual LP ($\max(0, x_i^* - Q_{i,\text{dasar}} - \Delta Q_{i,\text{cuaca}})$) [12][18].
+- $\Delta Q_{i,\text{likuiditas}}$: Pemotongan buffer diskresioner (Lapisan 4 & 5) jika risiko penutupan kredit PBF terdeteksi pada hari ke-60 [23]. Obat Vital kebal potong ($\Delta Q_{V,\text{likuiditas}} = 0$).
 
 ### Rekapitulasi Keputusan Arsitektur & Perbandingan Solusi (Architectural Trade-offs)
 
@@ -599,8 +613,8 @@ Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, kep
 
 | Komponen Sistem | Pendekatan Konvensional (Baseline / Excel) | Solusi Arsitektur Sediantara | Landasan Praktis & Referensi |
 | :--- | :--- | :--- | :--- |
-| **Target Buffer Pengaman** | Buffer statis persentase seragam (10%–20%) tanpa melihat kapasitas kas dan risiko ekor kebutuhan. | Wasserstein DRO (HiGHS Dual LP) yang mencari target optimal kontinu di bawah pagu kas cair BLUD dan kuota RKO tahunan. | Robust optimization terapan [12][18]; Permendagri 79/2018 [8] |
-| **Sinyal Epidemiologi & Cuaca** | Reaktif setelah wabah terjadi atau rekap kasus manual di luar sistem stok farmasi. | Fitur lag curah hujan BMKG (21–35 hari) dimasukkan ke LightGBM untuk mendeteksi lonjakan cairan infus sebelum pasien masuk IGD. | Lag DBD/ISPA klinis [19][20] |
+| **Target Buffer Pengaman** | Buffer statis persentase seragam (10%–20%) tanpa melihat kapasitas kas dan risiko ekor kebutuhan. | Wasserstein DRO (HiGHS Dual LP) yang mencari target optimal kontinu di bawah pagu kas cair BLUD (kuota RKO tahunan ditegakkan di Stage 3). | Robust optimization terapan [12][18]; Permendagri 79/2018 [8] |
+| **Sinyal Epidemiologi & Cuaca** | Reaktif setelah wabah terjadi atau rekap kasus manual di luar sistem stok farmasi. | Fitur lag curah hujan BMKG (21–35 hari) dimasukkan ke LightGBM untuk mendeteksi lonjakan cairan infus sebelum pasien masuk IGD. | Lag DBD/ISPA klinis [19] |
 | **Prioritas Urgensi Obat** | Klasifikasi matriks ABC–VEN statis tahunan berupa tabel laporan deskriptif. | Decision engine dinamis: alokasi bertahap runway-based (Dasar V ➔ Dasar E ➔ Buffer V ➔ Buffer E ➔ N) di bawah kendala kas ketat. | Standar alokasi MSH MDS-3 [4]; Evaluasi farmasi RS [2][21] |
 | **Peramalan Kuantil Kebutuhan** | Rata-rata bergerak (Moving Average) atau estimasi subjektif apoteker. | Multi-quantile regression ($\tau \in \{0.5, 0.8, 0.9\}$) dengan *post-hoc isotonic sort* langsung dibulatkan ke kelipatan kemasan box e-Katalog LKPP. | Quantile forecasting [6][11][22] |
 | **Manajemen Risiko Utang Distributor** | Pembelian obat jalan terus hingga ditolak mendadak oleh distributor akibat tagihan macet BPJS. | *Liquidity Throttle*: mengerem otomatis buffer non-vital saat piutang PBF mendekati jatuh tempo (mencegah akun RS dibekukan). | Mitigasi risiko operasional rantai pasok PBF [23] |
@@ -636,7 +650,7 @@ Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, kep
 13. Tobin, J. (1958). Estimation of Relationships for Limited Dependent Variables. *Econometrica*, 26(1), 24–36. https://doi.org/10.2307/1907382
 14. Diebold, F. X. & Mariano, R. S. (1995). Comparing Predictive Accuracy. *Journal of Business & Economic Statistics*, 13(3), 253–263. https://doi.org/10.1080/07350015.1995.10524599
 15. Republik Indonesia (2004). *Undang-Undang Nomor 1 Tahun 2004 tentang Perbendaharaan Negara*. Lembaran Negara Republik Indonesia Tahun 2004 Nomor 5.
-16. Kementerian Dalam Negeri RI (2016). *Peraturan Menteri Dalam Negeri Nomor 19 Tahun 2016 tentang Pedoman Pengelolaan Barang Milik Daerah*; jo. Badan Pengawas Obat dan Makanan RI (2021). *Peraturan BPOM Nomor 24 Tahun 2021 tentang Pengawasan Pengelolaan Obat di Fasilitas Pelayanan Kefarmasian* (Pasal 27–29 Penyaluran Darurat / Bon Pinjam-Mengganti Persediaan Antar-Fasyankes).
+16. Badan Pengawas Obat dan Makanan RI (2021). *Peraturan BPOM Nomor 24 Tahun 2021 tentang Pengawasan Pengelolaan Obat di Fasilitas Pelayanan Kefarmasian* (Pasal 27–29 Penyaluran Darurat / Bon Pinjam-Mengganti Persediaan Antar-Fasyankes); jo. Kementerian Kesehatan RI (2016). *Peraturan Menteri Kesehatan RI Nomor 72 Tahun 2016 tentang Standar Pelayanan Kefarmasian di Rumah Sakit*.
 17. Harvey, D., Leybourne, S., & Newbold, P. (1997). Testing the Equality of Prediction Mean Squared Errors. *International Journal of Forecasting*, 13(2), 281–291. https://doi.org/10.1016/S0169-2070(96)00719-4
 18. Gao, R. & Kleywegt, A. J. (2023). Distributionally Robust Stochastic Optimization with Wasserstein Distance. *Mathematics of Operations Research*, 48(2), 603–655. https://doi.org/10.1287/moor.2022.1274
 19. Fidayanto, R., Susilowati, I. H., & Prasetyo, S. D. (2013). Model Pengendalian Demam Berdarah Dengue. *Kesmas: Jurnal Kesehatan Masyarakat Nasional*, 7(11), 522–528. https://doi.org/10.21109/kesmas.v7i11.371
