@@ -161,54 +161,40 @@ Semua rekomendasi pemesanan obat wajib mematuhi 7 aturan operasional rumah sakit
 
 Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuhan (AI/ML) ➔ Optimasi Kas & Risiko (Wasserstein DRO) ➔ Eksekusi Pembelian Box (Greedy Waterfall)**.
 
-| Dimensi Pipeline | Stage 1: Prediksi Kebutuhan (AI/ML) | Stage 2: Optimasi Kas & Risiko (Wasserstein DRO) | Stage 3: Eksekusi Box & Kuota (Greedy Waterfall) |
+| Ringkasan Pipeline | Stage 1: Prediksi Kebutuhan (AI/ML) | Stage 2: Optimasi Kas & Risiko (Wasserstein DRO) | Stage 3: Eksekusi Box & Kuota (Greedy Waterfall) |
 | :--- | :--- | :--- | :--- |
-| **Fokus & Tujuan** | Mengestimasi rentang kebutuhan masa depan berbasis tren pemakaian, BOR ranjang, dan anomali iklim BMKG. | Menyeimbangkan pagu kas cair BLUD dan memitigasi risiko lonjakan kebutuhan terburuk (*worst-case distribution shift*). | Menerjemahkan target desimal ke kemasan fisik box e-Katalog LKPP dan melindungi akun kredit dari embargo distributor. |
-| **Modul Kode** | `backend/model_forecast.py` | `backend/allocation_engine.py` | `backend/allocation_engine.py` |
-| **Engine / Solver** | LightGBM Quantile Regressor ($\tau \in \{0.5, 0.8, 0.9\}$) [22] | HiGHS Dual LP Solver (`scipy.optimize.linprog`) [12][18] | Heuristik Runway Box + PBF Credit Lock Guard [9][23] |
-| **Input Data Kunci** | • Konsumsi harian SIMRS (decensored)<br>• Keterisian ranjang (BOR) & hari libur<br>• Lag curah hujan BMKG ($t-28$) [19] | • Proyeksi kuantil Stage 1 (P50, P80, P90)<br>• Sisa pagu kas bulanan BLUD [8]<br>• Bobot penalti klinis ($V > E > N$) [4]<br>• Radius ambiguitas Wasserstein ($\epsilon$) | • Target kontinu $x_i^*$ dari Stage 2<br>• Stok fisik gudang & PO berjalan<br>• Master e-Katalog (isi per box $P_i$, MOQ) [9]<br>• Aging utang dagang ke distributor (AP) [23] |
-| **Logika & Algoritma** | Pinball loss multi-kuantil untuk memetakan spektrum ketidakpastian konsumsi per SKU. | **Wasserstein DRO**: meminimalkan ekspektasi kerugian skenario terburuk dalam bola ketidakpastian $\epsilon$ di bawah batas kas BLUD. | Runway priority queue ($\text{Runway} = \text{Stok} / \text{Laju Konsumsi}$), alokasi bertahap 5 lapisan VEN, dan *Knapsack greedy pass*. |
-| **Penjaga Integritas & Regulasi** | Monotonic sorting (`np.sort`) mencegah crossing kuantil [11]; isolasi stok segel troli darurat IGD. | Safety floor obat Vital KFT (`vital_min_stock`) terkunci 100% dari pemotongan [7]. | Pembulatan kemasan resmi box fisik e-Katalog [9]; rem proaktif utang 60 hari cegah embargo kredit PBF 90 hari [23]. |
-| **Output Data** | Proyeksi kuantil pemakaian $\hat{Q}_{0.50}, \hat{Q}_{0.80}, \hat{Q}_{0.90}$ (unit kontinu). | Target stok optimal kontinu ($x_i^* \in \mathbb{R}_{\ge 0}$) per SKU tahan pergeseran distribusi. | Draf Usulan Pembelian integer box ($B_i \in \mathbb{Z}_{\ge 0}$) format CSV resmi siap impor portal e-Purchasing LKPP. |
-| **Latensi Komputasi** | < 500 ms (50 SKU, CPU standar) | < 10 ms (50 SKU, solver deterministik C++) | < 5 ms (50 SKU, iterasi integer greedy) |
+| **Tujuan** | Peramalan rentang pemakaian per SKU (P50, P80, P90) berbasis tren & sinyal cuaca BMKG. | Menyeimbangkan alokasi kas 50 SKU secara global dan tahan terhadap lonjakan risiko terburuk. | Membulatkan target desimal ke kemasan box fisik LKPP dan mengerem utang distributor. |
+| **Engine / Modul** | LightGBM Quantile (`backend/model_forecast.py`) [22] | Solver HiGHS LP (`backend/allocation_engine.py`) [12][18] | Heuristik Runway Waterfall (`backend/allocation_engine.py`) [9][23] |
+| **Input Kunci** | Riwayat SIMRS (decensored), BOR ranjang, lag hujan BMKG ($t-28$) [19] | Kuantil Stage 1, sisa kas cair BLUD [8], bobot klinis VEN [4], radius guncangan $\epsilon$ | Target $x_i^*$ Stage 2, stok gudang, pack size $P_i$ & MOQ e-Katalog, umur utang AP [23] |
+| **Output Kunci** | Proyeksi pemakaian unit kontinu ($\hat{Q}_{0.50}, \hat{Q}_{0.80}, \hat{Q}_{0.90}$) | Target stok optimal ($x_i^*$) yang efisien kas & aman dari anomali wabah | Draf Usulan Pembelian integer box ($B_i \in \mathbb{Z}_{\ge 0}$) format CSV e-Katalog |
+| **Runtime** | < 500 ms (CPU) | < 10 ms (CPU) | < 5 ms (CPU) |
 
 ---
 
 #### Rincian Implementasi Tiap Stage
 
 ##### Stage 1: Prediksi Kebutuhan Obat (`backend/model_forecast.py`)
-- **The Problem:** Kebutuhan obat di rumah sakit tidak statis dan sangat dipengaruhi faktor eksternal (misal: wabah DBD melonjak 3–4 minggu setelah curah hujan tinggi, lonjakan pasien rawat inap / BOR, serta hari libur kalender). Model rata-rata biasa pasti terlambat mengantisipasi lonjakan musiman.
-- **What It Takes (Input):**
-  - Riwayat konsumsi obat harian (rolling window 7, 14, 30 hari).
-  - Data cuaca BMKG terintegrasi (khususnya curah hujan dengan lag klinis 21–35 hari untuk DBD dan 3–7 hari untuk ISPA) [19].
-  - Konteks operasional rumah sakit: persentase keterisian ranjang (BOR) dan penanda hari libur nasional.
-- **What It Does (Logic):**
-  - Melatih model **LightGBM Quantile Regression** untuk 3 kuantil proyeksi sepanjang horizon $H$ hari ke depan ($Y_{i,t}^{(H)} = \sum_{k=1}^{H} D_{i,t+k}$) [22]:
-    - `P50` ($\tau = 0.50$): Proyeksi baseline konsumsi normal harian (juga digunakan sebagai baseline obat Non-Esensial).
-    - `P80` ($\tau = 0.80$): Batas aman atas untuk obat kategori Esensial.
-    - `P90` ($\tau = 0.90$): Batas pengaman tinggi untuk obat kategori Vital darurat.
-  - Menjalankan penataan monoton sederhana (`numpy.sort` post-hoc) agar nilai kuantil selalu terurut logis ($\hat{Q}_{0.50} \le \hat{Q}_{0.80} \le \hat{Q}_{0.90}$) dan garis prediksi tidak menyilang (*quantile crossing guard*) [11].
-- **What It Gives (Output):**
-  - Vektor proyeksi kebutuhan obat (dalam satuan unit pemakaian) per SKU untuk horizon perencanaan.
+- **The Problem:** Kebutuhan obat di rumah sakit dipengaruhi dinamika eksternal (wabah musiman, lonjakan rawat inap / BOR, dan kalender libur). Model rata-rata biasa selalu terlambat mengantisipasi lonjakan epidemiologi.
+- **Input:** Riwayat konsumsi harian SIMRS (rolling 7, 14, 30 hari), data keterisian tempat tidur (BOR), serta lag curah hujan BMKG (21–35 hari untuk DBD, 3–7 hari untuk ISPA) [19].
+- **Logic:** Melatih **LightGBM Quantile Regression** untuk memprediksi 3 kuantil kebutuhan horizon $H$ hari [22]:
+  - `P50` ($\tau = 0.50$): Pemakaian normal harian (baseline rutin).
+  - `P80` ($\tau = 0.80$): Batas aman obat kategori Esensial.
+  - `P90` ($\tau = 0.90$): Batas pengaman darurat obat kategori Vital.
+  - Penataan monotonik post-hoc (`np.sort`) diterapkan untuk menjamin kuantil tidak saling silang ($\hat{Q}_{0.50} \le \hat{Q}_{0.80} \le \hat{Q}_{0.90}$) [11].
+- **Output:** Vektor proyeksi kuantil kebutuhan per SKU untuk horizon perencanaan.
 
 ##### Stage 2: Optimasi Target Kas & Risiko (Wasserstein DRO) (`backend/allocation_engine.py`)
-- **The Problem:** Prediksi Stage 1 menghasilkan estimasi kebutuhan nominal. Di dunia nyata, RSUD menghadapi pergeseran distribusi (*distribution shift*) akibat anomali cuaca ekstrem, keterbatasan sampel historis, dan keterbatasan pagu kas cair BLUD [8]. Jika hanya mengandalkan rata-rata skenario masa lalu, sistem rentan kehabisan stok saat terjadi lonjakan wabah terburuk. Namun jika memesan seluruh kuantil atas (P90), kas cair BLUD langsung jebol.
-- **What It Takes (Input):**
-  - Proyeksi kuantil kebutuhan dari Stage 1 (`P50`, `P80`, `P90`).
-  - Skenario kebutuhan empiris dan radius ketidakpastian Wasserstein ($\epsilon$) [12][18].
-  - Sisa pagu kas cair bulanan BLUD [8].
-  - Bobot prioritas klinis (penalti kekosongan: Vital > Esensial > Non-Esensial) [4][21].
-  - Lantai pengaman stok minimum obat vital (`vital_min_stock` KFT) [7].
-- **What It Does (Logic):**
-  - Mengonstruksi **Wasserstein Distributionally Robust Optimization (DRO)** yang ditransformasikan secara eksak menjadi Linear Program (Dual LP) dan diselesaikan oleh solver deterministik **HiGHS** (`scipy.optimize.linprog(method='highs')`) [12][18].
-  - **Prinsip Kerja:** Alih-alih berasumsi distribusi kebutuhan masa depan akan persis sama dengan riwayat masa lalu, Wasserstein DRO mengoptimalkan alokasi terhadap *skenario terburuk* dalam radius ketidakpastian Wasserstein $\epsilon$ (mengamankan anomali lonjakan wabah). Solver mencari titik kompromi kontinu terbaik ($x_i^*$) serentak untuk 50 SKU:
-    1. Mengunci stok obat Vital agar minimal mencapai safety floor KFT (`vital_min_stock`) dan target kuantil aman.
-    2. Mendistribusikan sisa ruang kas ke obat Esensial dan Non-Esensial untuk meminimalkan risiko kerugian klinis global.
-    3. Memastikan total belanja tidak melebihi sisa pagu kas cair BLUD:
-       $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
-  - **Kecepatan Eksekusi:** Berjalan deterministik dalam tempo **< 10 milidetik di CPU standar** (tanpa butuh GPU), menjaga sistem tetap instan saat apoteker mengubah-ubah parameter anggaran di dashboard.
-- **What It Gives (Output):**
-  - Target persediaan optimal kontinu ($x_i^* \in \mathbb{R}_{\ge 0}$) per SKU yang tahan terhadap lonjakan risiko ekstrem, siap dieksekusi ke kemasan box fisik di Stage 3.
+- **The Problem:** Prediksi Stage 1 menghasilkan angka kebutuhan ideal. Jika RSUD langsung membeli target atas (P90) untuk semua obat, kas cair BLUD langsung jebol [8]. Sebaliknya, jika memotong anggaran secara manual atau persentase rata, obat vital berisiko mengalami kekosongan fatal saat wabah melonjak.
+- **Intuisi DRO untuk Engineer:**
+  - *Bukan Optimasi Rata-rata:* Optimasi biasa hanya siap untuk kondisi normal historis (rentan jebol saat anomali cuaca).
+  - *Bukan Pula Asumsi Kiamat:* Menyiapkan stok darurat ekstrem untuk semua obat sekaligus akan memboroskan anggaran hingga 3x lipat.
+  - *Wasserstein DRO = Stress-Test Terukur:* Model membangun radius toleransi guncangan ($\epsilon$) di sekitar data historis [12][18]. Solver mencari target persediaan ($x_i^*$) yang meminimalkan risiko kerugian klinis pada skenario terburuk di dalam radius tersebut, tanpa melanggar pagu kas BLUD.
+- **Logic & Implementasi:**
+  - Diformulasikan sebagai Linear Program (LP) dan diselesaikan oleh solver deterministik **HiGHS** (`scipy.optimize.linprog(method='highs')`) dalam **< 10 milidetik di CPU standar** [12][18].
+  - Solver menyeimbangkan trade-off 50 SKU secara serentak di bawah satu batasan kas global:
+    $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
+    Obat Vital dikunci minimal pada safety floor KFT (`vital_min_stock`) [7], sementara sisa kas dialokasikan ke obat Esensial dan Non-Esensial berdasarkan prioritas penalti klinis ($V > E > N$) [4][21].
+- **Output:** Target stok kontinu optimal ($x_i^* \in \mathbb{R}_{\ge 0}$) per SKU yang siap dieksekusi menjadi pesanan box fisik di Stage 3.
 
 ##### Stage 3: Eksekutor Pembulatan Kemasan Box & Kuota Vendor (`backend/allocation_engine.py`)
 - **The Problem:** Distributor farmasi (PBF) di e-Katalog tidak melayani pesanan pecahan desimal (wajib kelipatan kemasan box fisik $P_i$ dan mematuhi batas order minimal $\text{MOQ}_i$) [9]. Selain itu, jika tagihan ke distributor menumpuk akibat klaim BPJS pending, distributor akan memblokir sepihak akun RSUD (*credit freeze*) [23].
