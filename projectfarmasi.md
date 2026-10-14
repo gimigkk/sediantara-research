@@ -184,17 +184,26 @@ Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuh
 - **Output:** Vektor proyeksi kuantil kebutuhan per SKU untuk horizon perencanaan.
 
 ##### Stage 2: Optimasi Target Kas & Risiko (Wasserstein DRO) (`backend/allocation_engine.py`)
-- **The Problem:** Prediksi Stage 1 menghasilkan angka kebutuhan ideal. Jika RSUD langsung membeli target atas (P90) untuk semua obat, kas cair BLUD langsung jebol [8]. Sebaliknya, jika memotong anggaran secara manual atau persentase rata, obat vital berisiko mengalami kekosongan fatal saat wabah melonjak.
-- **Intuisi DRO untuk Engineer:**
-  - *Bukan Optimasi Rata-rata:* Optimasi biasa hanya siap untuk kondisi normal historis (rentan jebol saat anomali cuaca).
-  - *Bukan Pula Asumsi Kiamat:* Menyiapkan stok darurat ekstrem untuk semua obat sekaligus akan memboroskan anggaran hingga 3x lipat.
-  - *Wasserstein DRO = Stress-Test Terukur:* Model membangun radius toleransi guncangan ($\epsilon$) di sekitar data historis [12][18]. Solver mencari target persediaan ($x_i^*$) yang meminimalkan risiko kerugian klinis pada skenario terburuk di dalam radius tersebut, tanpa melanggar pagu kas BLUD.
-- **Logic & Implementasi:**
-  - Diformulasikan sebagai Linear Program (LP) dan diselesaikan oleh solver deterministik **HiGHS** (`scipy.optimize.linprog(method='highs')`) dalam **< 10 milidetik di CPU standar** [12][18].
-  - Solver menyeimbangkan trade-off 50 SKU secara serentak di bawah satu batasan kas global:
-    $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
-    Obat Vital dikunci minimal pada safety floor KFT (`vital_min_stock`) [7], sementara sisa kas dialokasikan ke obat Esensial dan Non-Esensial berdasarkan prioritas penalti klinis ($V > E > N$) [4][21].
-- **Output:** Target stok kontinu optimal ($x_i^* \in \mathbb{R}_{\ge 0}$) per SKU yang siap dieksekusi menjadi pesanan box fisik di Stage 3.
+- **Masalah Nyata (The Problem):**
+  Dari Stage 1, kita punya angka kebutuhan ideal. Masalahnya: **Kas rumah sakit terbatas.**
+  - Kalau kita beli stok maksimal (P90) untuk semua obat $\to$ Kas BLUD langsung jebol (*Out of Budget*).
+  - Kalau kita potong manual atau bagi rata $\to$ Obat kritis (seperti infus DBD atau Epinefrin) bisa habis saat wabah mendadak melonjak.
+- **Analogi Sederhana untuk Software Engineer:**
+  Bayangkan Stage 2 seperti **Smart Resource Allocator** (mirip manajemen alokasi RAM server):
+  - Kamu punya RAM terbatas 16 GB (Pagu Kas Rp 95 Juta). Ada 50 service (50 obat) yang meminta alokasi memori.
+  - Service kritis (*Core DB* / Obat Vital) **wajib dapat alokasi aman 100%**, tidak boleh crash.
+  - Sisa memori yang terbatas harus dibagi ke service lain (*Worker* / Obat Esensial).
+  - **Fungsi Wasserstein DRO:** Solver menguji alokasi: *"Jika terjadi lonjakan traffic terburuk akibat badai hujan (distribution shift), pembagian kuota memori mana yang paling meminimalkan risiko server down?"*
+- **Cara Kerja di Kode (`backend/allocation_engine.py`):**
+  Fungsi menerima input: hasil prediksi kuantil Stage 1, batas pagu kas BLUD [8], dan bobot prioritas klinis ($V > E > N$) [4][21]. Solver **HiGHS** (`scipy.optimize.linprog`) mengeksekusi optimasi satu kali jalan:
+  1. **Kunci Pengaman Vital:** Menjamin stok obat Vital minimal menyentuh lantai aman darurat (`vital_min_stock` KFT) [7].
+  2. **Bagi Kas Berbasis Risiko Terburuk (DRO):** Mendistribusikan sisa kas ke obat Esensial yang paling rawan lonjakan kasus agar dampak klinis ke pasien seminimal mungkin [12][18].
+  3. **Kunci Pagu Kas (Hard Constraint):** Memastikan total rupiah belanja tidak pernah melampaui sisa kas BLUD:
+     $$\sum_{i=1}^{M} \text{Harga}_i \times \max(0, x_i - \text{Stok}_i) \le \text{Pagu Kas BLUD}$$
+- **Kenapa Pakai Nama "Wasserstein DRO"?**
+  Karena kata *Distributionally Robust Optimization* (DRO) dengan metrik *Wasserstein* menjamin secara matematis bahwa target stok yang dihasilkan **tahan banting terhadap perubahan pola penyakit di dunia nyata**, bukan cuma pas di data historis masa lalu [12][18].
+- **Output:** Target angka kebutuhan ideal per obat ($x_i^*$, angka desimal kontinu) yang sudah lolos uji pagu kas dan siap diubah menjadi kemasan fisik box di Stage 3.
+- **Performa:** Selesai dalam tempo **< 10 milidetik di CPU standar** (tanpa butuh GPU).
 
 ##### Stage 3: Eksekutor Pembulatan Kemasan Box & Kuota Vendor (`backend/allocation_engine.py`)
 - **The Problem:** Distributor farmasi (PBF) di e-Katalog tidak melayani pesanan pecahan desimal (wajib kelipatan kemasan box fisik $P_i$ dan mematuhi batas order minimal $\text{MOQ}_i$) [9]. Selain itu, jika tagihan ke distributor menumpuk akibat klaim BPJS pending, distributor akan memblokir sepihak akun RSUD (*credit freeze*) [23].
