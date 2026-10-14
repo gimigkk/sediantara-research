@@ -1,0 +1,404 @@
+--- PAGE 1 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+
+--- PAGE 2 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+1. Deskripsi Kompetisi 
+PLAY IT! Hackathon DeepTech adalah kompetisi inovasi nasional bertema Digitalisasi AI , 
+mempertemukan mahasiswa, dosen, dan profesional industri untuk merancang, menguji, dan 
+memvalidasi solusi berbasis kecerdasan artifisial atas masalah nyata dari mitra industri. 
+Penyelenggara: Politeknik Negeri Malang, dalam skema Program Hilirisasi Riset Strategis - 
+Pendanaan Hackathon Deeptech (Direktorat Hilirisasi dan Kemitraan, Ditjen Riset dan Pengembangan, 
+Kemendiktisaintek, bekerja sama dengan LPDP). 
+ 
+Latar Belakang 
+Digitalisasi sektor produktif nasional sudah berjalan, tetapi data operasional yang terkumpul sebagian 
+besar berhenti sebagai catatan dan belum diolah menjadi dasar keputusan. Dampaknya terlihat pada tiga 
+sektor: 
+● Susut dan sisa pangan merugikan Rp213–551 triliun per tahun (4–5% PDB nasional), sebagian 
+besar akibat rantai pendingin dan penyimpanan yang tidak terpantau. 
+● Rekam medis elektronik belum sepenuhnya interoperabel meski 96% rumah sakit sudah 
+menerapkannya, karena ketidakcocokan standar data dan minimnya tenaga ahli. 
+● Penerapan Industri 4.0 belum meluas — 79% manufaktur global masih terhenti di tahap uji 
+coba ( pilot trap ) — sementara Indonesia masih membutuhkan sekitar 9 juta talenta digital 
+hingga 2030. 
+Kompetisi ini dirancang untuk mengubah data yang sudah tersedia menjadi solusi berbasis AI yang 
+dapat ditindaklanjuti mitra pengguna, lewat kolaborasi singkat dan terarah antara kampus dan industri. 
+ 
+Tujuan 
+1. Mendorong lahirnya talenta unggul dan solusi kreatif untuk masalah nyata, lewat riset terapan 
+yang menghasilkan teknologi berdampak. 
+2. Membangun ekosistem deeptech nasional melalui kolaborasi nyata antara mahasiswa, dosen, 
+industri, dan pemerintah. 
+3. Mencetak technopreneur dan mendorong lahirnya start -up baru yang inovatif dan berdaya 
+saing. 
+4. Mendorong hilirisasi hasil riset dan memperkuat ekosistem inovasi. 
+ 
+Manfaat 
+Bagi perguruan tinggi: penguatan luaran hilirisasi berupa purwarupa dan calon produk, serta 
+menguatnya peran kampus berdampak bagi masyarakat. 
+Bagi mahasiswa dan dosen: peningkatan kompetensi bidang AI dan IoT lewat kasus industri riil, 
+pengalaman berkolaborasi dengan mentor profesional, serta peluang karier dan kewirausahaan berbasis 
+teknologi. 
+Bagi mitra pengguna inovasi: alternatif solusi digital atas problem operasional dengan biaya 
+pengembangan efisien, serta jalur rekrutmen talenta digital dan kemitraan riset berkelanjutan. 
+Bagi pemerintah dan masyarakat: bertambahnya stok talenta digital nasional, serta purwarupa yang 
+menopang agenda ketahanan pangan, ketersediaan alat kesehatan dan obat, serta hilirisasi industri. 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 3 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+2. Kategori Bidang 
+Peserta memilih satu kategori saat mendaftar 
+No Kategori 
+1 Digitalisasi AI untuk Ketahanan Pangan 
+2 Digitalisasi AI untuk Kesehatan 
+3 Digitalisasi AI untuk Industrialisasi 
+Rincian problem statement tiap kategori ada di Bagian 7. 
+ 
+3. Syarat dan Ketentuan 
+3.1 Komposisi Tim 
+● 3–6 orang per tim, wajib mengandung 1 dosen, 1 profesional, dan minimal 1 mahasiswa. 
+● Dianjurkan lintas disiplin agar pendekatan teknologi-pasar-desain seimbang. Namun untuk 
+dosen dan mahasiswa tetap dalam institusi yang sama. 
+● Setiap tim menguraikan peran anggota, minimal mencakup: 
+○ Koordinator Teknis — perancangan & pengembangan prototipe 
+○ Koordinator Bisnis & Hilirisasi — model bisnis, strategi masuk pasar, rencana 
+komersialisasi 
+○ Koordinator Validasi Pengguna — interaksi mitra, pengumpulan kebutuhan, uji 
+lapangan 
+3.2 Syarat per Unsur 
+Dosen 
+● Berstatus dosen tetap, dibuktikan NIDN/NIDK/NUPTK aktif di PDDIKTI. 
+● Latar belakang keilmuan relevan dengan kategori yang dipilih. 
+● Berperan sebagai mentor tim selama masa persiapan — bukan pengganti mahasiswa dalam 
+pengembangan prototipe. 
+● Tidak sedang menjabat sebagai juri/tim pakar/mentor resmi program ini. 
+● Hanya boleh terdaftar di 1 (satu) tim. 
+Mahasiswa 
+● Mahasiswa aktif, semua jenjang studi, dari perguruan tinggi mana pun di Indonesia. 
+● Hanya boleh terdaftar di 1 (satu) tim. 
+Profesional 
+● Peneliti di luar perguruan tinggi, atau profesional industri (termasuk startup) dibuktikan 
+dengan melampirkan CV. 
+● Hanya boleh terdaftar di 1 (satu) tim. 
+ 
+3.3 Dokumen Pendaftaran Wajib 
+1. Daftar Riwayat Hidup dan portofolio ketua dan seluruh anggota tim. 
+2. Pakta Integritas ditandatangani seluruh anggota: pernyataan orisinalitas karya, belum pernah 
+memenangkan kompetisi lain dengan karya yang sama, dan komitmen mengikuti seluruh 
+rangkaian kegiatan. 
+3. Proposal purwarupa awal (format di Bagian 8). 
+ 
+ 
+ 
+--- PAGE 4 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+3.4 Komitmen Peserta 
+● Diharapkan berkenan untuk mengikuti Bootcamp I (Ideation) dan wajib mengikuti Bootcamp 
+II (Prototyping) → Bootcamp III (MVP) → Final Hackathon 3 hari → Exhibition → Inkubasi. 
+Jika dinyatakan lolos disetiap tahapannya. 
+● Tim yang lolos ke tahap inkubasi bersedia didampingi hingga purwarupa siap dihilirisasi , 
+dengan bukti Beriata acara penyerahan produk ke mitra (BAST). 
+● Anggota tim tidak dapat diganti setelah dinyatakan lolos seleksi Tahap I. 
+● Jika anggota tim unsur dosen dan professional dinyatakan lolos tahapan final maka tidak 
+diwajibkan untuk mengikuti kegiatan rangkaian final secara onsite (akan disediakan platform 
+online). Namun untuk anggota tim unsur mahasiswa yang dinyatakan lolos final  wajib 
+mengikuti kegiatan rangkaian final secara onsite di Malang, Jawa Timur, Indonesia.  Panitia 
+akan menyediakan akomodasi selama penyelenggaraan kegiatan di Malang. UNtuk transportasi 
+dari tempat asal menuju Kota Malang dan sebaliknya menjadi tanggung jawab peserta masing-
+masing. 
+ 
+4. Prize Pool 
+Hadiah Pemenang (per kategori, 3 kategori): 
+Peringkat Hadiah per Kategori 
+Juara 1 Rp25.000.000 
+Juara 2 Rp15.000.000 
+Juara 3 Rp8.000.000 
+  
+• Tim yang lolos ketahap final akan mendapatkan penggantian dana pengembangan purwarupa 
+maksimal sebesar Rp 3.200.000 *) akan dijelaskan saat tahapan final berlangsung. 
+• Tim juara di setiap kategori juga melanjutkan ke tahap inkubasi bisnis bersama Inkubator Bisnis 
+Entrepreneur Training Unit. 
+ 
+5. Alur Kompetisi 
+5.1 Tahapan Program 
+Pembukaan → Bootcamp I: Ideation → Seleksi I → Bootcamp II: Prototyping → Seleksi II → 
+Bootcamp III: MVP → Final Hackathon 3 Hari → Exhibition → Awarding → Inkubasi. 
+ 
+5.2 Alur Final Hackathon (3 Hari) 
+Tanggal Fokus Kegiatan Utama 
+26 Nov 2026 Opening & Hilirisasi Opening Ceremony, Lokakarya 
+Hilirisasi 
+27 Nov 2026 HackDay HackDay 24 Hours — pengembangan 
+intensif purwarupa 
+28 Nov 2026 Pitching & Closing Pitching Hasil Karya, Exhibition, 
+Closing Ceremony and Awarding 
+  
+ 
+--- PAGE 5 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+ 
+ 
+ 
+6. Jadwal 
+Tanggal Tahapan Kegiatan / Capaian 
+28 Sep – 16 Okt 2026 Pendaftaran Pendaftaran & Pengumpulan 
+Proposal 
+1 Okt 2026 Bootcamp I: Ideation Bootcamp – Ideation (Daring) 
+23 Okt 2026 Seleksi I Pengumuman Seleksi Tahap 1 
+26 Okt 2026 Bootcamp II: Prototyping Bootcamp – Prototyping (Daring) 
+10 Nov 2026 Bootcamp II: Prototyping Batas Pengumpulan Prototyping 
+13 Nov 2026 Seleksi II Pengumuman Seleksi Tahap 2 
+16 Nov 2026 Bootcamp III: MVP Bootcamp – MVP (Daring) 
+26 Nov 2026 Final Hackathon Opening Ceremony & Lokakarya 
+Hilirisasi 
+27 Nov 2026 Final Hackathon HackDay 24 Hours 
+28 Nov 2026 Final Hackathon Pitching Hasil Karya, Exhibition, 
+Closing Ceremony and Awarding 
+15 Des 2026 – 15 Feb 
+2027 
+Inkubasi Inkubasi Para Pemenang (Daring), 
+Pendampingan Hilirisasi hingga 
+serah terima karya 
+  
+7. Deskripsi per Bidang dan Problem yang Harus Diselesaikan 
+Contoh problem statement berikut disusun bersama mitra  pemyelenggara untuk menggambarkan 
+lingkup masalah. Peserta dapat mengangkat salah satu contoh di bawah, atau merumuskan problem 
+statement lain yang relevan . Peserta yang merumuskan problem statement sendiri diharapkan sudah 
+memiliki mitra sendiri untuk penerapan hasil karya. 
+ 
+7.1 Ketahanan Pangan 
+Mitra adalah produsen susu segar terintegrasi dari peternakan hingga pengolahan. Contoh problem 
+statement: 
+● Kalender tanam dan cuaca : cuaca ekstrem membuat petani salah menentukan waktu tanam, 
+sementara serangan hama datang tanpa peringatan. 
+● Harga gabah dan posisi tawar petani (distribusi): petani sering tidak tahu harga wajar saat 
+panen, sehingga mudah ditekan tengkulak. 
+● Disparitas harga bahan pokok antar daerah (distribusi): harga bahan pokok berbeda jauh antar 
+daerah, dan warga tidak tahu kenapa atau ke mana harus mencari yang lebih murah. 
+● Susut pascapanen (produksi): hasil panen hilang saat pengeringan, penyimpanan, dan 
+penggilingan karena cara tradisional dan tidak terpantau. 
+--- PAGE 6 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+● Sisa pangan rumah tangga dan ritel (ketersediaan): makanan layak konsumsi terbuang, 
+sementara ada warga yang kekurangan. 
+● Pupuk tepat waktu dan tepat sasaran (pengelolaan): petani kecil sulit memastikan haknya atas 
+pupuk subsidi, kapan tersedia, dan di mana menebusnya. 
+● Regenerasi petani dan lahan pangan (produksi): anak muda enggan bertani, dan lahan produktif 
+makin berkurang tanpa pemantauan warga. 
+● Stok dan akses pangan di tingkat warga (ketersediaan): warga tidak tahu stok pangan di 
+wilayahnya atau di mana pangan murah tersedia. Contohnya beras SPHP: Bulog diminta fokus 
+menyalurkannya ke daerah yang bukan sentra produksi padi. 
+ 
+7.2 Kesehatan  
+Mitra adalah jaringan layanan kesehatan primer. Contoh problem statement: 
+● Pada fase pendaftaran perlu mengurangi waktu tunggu. 
+● Pada fase anamnesa pencatatan keluhan manual memakan waktu kadang menyebabkan format 
+catatan tidak seragam. 
+● Pada fase diagnosa riwayat pasien tersebar dan sulit dilihat utuh. 
+● Pada fase terapi radiologi, lab, fisioterapi: permintaan dan hasil pemeriksaan bolak-balik secara 
+manual dan memakan waktu. Hasil alat laboratorium harus diinput ulang ke SIM RS, sehingga 
+butuh waktu tambahan dan berisiko salah ketik. 
+● Pada fase farmasi resep menunggu lama, stok obat tidak terlihat real-time, risiko obat kosong. 
+● Layanan penunjang: koordinasi antar unit masih lewat kertas atau lisan, klaim/tagihan terlambat 
+karena data belum lengkap. 
+● SATUSEHAT, Mobile JKN, dan SIM RS berjalan sendiri -sendiri, sehingga data yang sama 
+harus diinput di beberapa platform. 
+● Antrean dari Mobile JKN dan pendaftaran langsung tidak selalu sinkron dengan SIM RS. 
+ 
+7.3 Industrialisasi  
+● Truk tangki mengantre lama karena waktu kedatangannya menumpuk dan proses pemeriksaan 
+kualitas memakan waktu. 
+● Bahan baku sudah siap, tetapi tahap proses berikutnya belum siap menampungnya. 
+● Beberapa jalur pengemasan menghabiskan bahan lebih cepat daripada kemampuan pasokannya 
+sehingga proses menjadi tersendat. 
+● Waktu terbuang karena urutan pergantian jenis produk/kemasan dan pembersihan alat tidak 
+diatur dengan baik. 
+● Bahan baku menunggu terlalu lama di dalam tangki karena tahap selanjutnya belum siap 
+sehingga berisiko menurunkan kualitas. 
+● Bahan baku dari truk tangki tertentu sulit ditelusuri hingga ke produk jadi yang dihasilkannya 
+karena datanya tersebar di banyak tahap. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 7 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Template Proposal dan 
+Pakta Integritas 
+ 
+--- PAGE 8 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+LEMBAR IDENTITAS 
+ 
+ 
+1.     Judul                                : .................................................................... 
+2.     Ketua Tim  
+a.   Nama Lengkap            : .................................................................... 
+b.   Jenis Kelamin             : L / P 
+c.   NIDN/NIDK/NUPTK : .................................................................... 
+d.   Jabatan Struktural       : .................................................................... 
+e.   Jabatan Fungsional     : .................................................................... 
+f.    Institusi                       : ................................................................... 
+g.   Alamat                        : .................................................................... 
+h.   Telpon/Faks                : .................................................................... 
+i.    Alamat Rumah            :.................................................................... 
+j.    Telpon/Faks/E-mail    : .................................................................... 
+     
+3.     Lembaga Mitra Riset(*)  : .................................................................... 
+     Alamat (*)                   : .................................................................... 
+4.     Anggota Tim 
+ 
+No. Nama NIK/NIP Institusi 
+1.    
+2.    
+  
+ 
+                                                                                                  (Kota, tanggal bulan tahun) 
+  Ketua Tim Pelaksana, 
+  
+(Tanda Tangan) 
+  
+Nama: ……………………. 
+NIDN/NIDK/ NUPTK: …. 
+                                                                            
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 9 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+1.   Judul Proposal  
+[Judul Proposal] 
+2.   Tema Fokus Inovasi 
+        Bidang Strategis ☐    Digitalisasi AI Bidang Kesehatan 
+☐    Digitalisasi AI Bidang Ketahana Pangan 
+☐    Digitalisasi AI Bidang Industrialisasi 
+ 
+5.   Executive Summary  (maks. 250 kata) 
+Uraikan secara singkat mengenai inovasi yang akan dihasilkan, potensi pengguna, nilai komersial, manfaat dan 
+keunggulan inovasi, dan ringkasan proyek yang akan dikerjakan. 
+ 
+Ditulis dengan jenis huruf Times New Roman, ukuran font 12, spasi 1.15. 
+6.     Deskripsi Inovasi (Maksimum 2 halaman) 
+Uraikan secara singkat mengenai: 
+1. Sub-tema yang dipilih disertai dengan problem statement sesuai format pada poin dengan menjelaskan 
+secara ringkas masalah, sasaran pengguna, bukti kebutuhan, target kinerja, dan potensi hilirisasi.  
+2. Deskripsi singkat solusi awal yang diusulkan (konsep teknologi, pendekatan utama, dan keunggulan 
+dibanding solusi yang ada)  
+3. Perkiraan Tingkat Kesiapan Teknologi (TKT) awal berdasarkan literatur atau hasil riset sebelumnya  
+4. Status dan bentuk dukungan mitra industri/pengguna (jika ada), misalnya surat dukungan, akses 
+fasilitas, atau komitmen uji coba/pilot.  Atau menyelesaikan problem statement yang disediakan oleh 
+panitia. 
+ 
+Ditulis dengan jenis huruf Times New Roman, ukuran font 12, spasi 1.15. 
+7. Pembagian Tugas dan Tanggung Jawab Tim Pelaksana (maksimum 1 halaman) 
+ Tuliskan pembagian tugas dan tanggung jawab secara rinci: 
+- Pembagian peran dan tanggung jawab yang jelas tim . 
+ 
+Ditulis dengan jenis huruf Times New Roman, ukuran font 12, spasi 1.15 
+8. Daftar Pustaka 
+Daftar pustaka disusun dan ditulis berdasarkan sistem nomor sesuai dengan urutan pengutipan. Hanya pustaka 
+yang disitasi pada usulan yang dicantumkan dalam Daftar Pustaka. 
+9. Lampiran (Diunggah/Diisi dalam sistem) 
+● Daftar Riwayat Hidup;  
+● Portofolio karya inovasi/sertifikasi kompetensi (jika ada); 
+● Bukti kemitraan (jika ada). 
+  
+--- PAGE 10 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+PAKTA INTEGRITAS 
+PESERTA PROGRAM HACKATHON DEEPTECH 2026 
+ 
+Nama Ketua Tim  
+NIM/NIDN/NIP  
+Nama Tim  
+Asal Instansi  
+Tema  
+Judul Prototipe  
+ 
+Yang bertandatangan di bawah ini, mewakili seluruh anggota tim sebagaimana tercantum di atas, dengan penuh 
+kesadaran dan tanpa paksaan dari pihak manapun, menyatakan dan berkomitmen untuk:  
+1. Orisinalitas Karya : Produk, desain, sirkuit, program, atau prototipe yang kami ajukan sepenuhnya 
+merupakan karya orisinal tim kami, bebas dari plagiarisme, bukan hasil plagiarisme, duplikasi, atau 
+pemanfaatan karya pihak lain tanpa izin, dan tidak melanggar Hak Kekayaan Intelektual (HKI) siapapun, dan 
+belum pernah memenangkan pendanaan atau kompetisi sejenis di tempat lain dalam dua tahun terakhir.  
+2. Komitmen Mengikuti Rangkaian Program : Kami belum pernah memenangkan kompetisi lain dengan 
+karya yang sama. Kami bersedia dan berkomitmen mengikuti seluruh rangkaian kegiatan PLAY IT! PLUS 
+— Deeptech Hackathon 2026 sampai selesai, meliputi bootcamp, seleksi, final hackathon, exhibition, serta  
+tahap inkubasi apabila tim kami terpilih. Dan Seluruh data dan dokumen yang kami serahkan dalam 
+pendaftaran adalah benar. 
+3. Bebas Konflik Kepentingan:  Tidak memiliki hubungan yang menimbulkan konflik kepentingan dengan 
+juri, tim pakar, panitia, atau pihak penyelenggara yang dapat mempengaruhi objektivitas penilaian.  
+4. Kerahasiaan data (NDA):  Kami bersedia menjaga kerahasiaan kekayaan intelektual (IP) milik tim lain 
+maupun mitra industri yang terlibat dalam program ini. 
+5. Kepatuhan Hukum: Kami akan mematuhi seluruh ketentuan hukum yang berlaku, Apabila di 
+kemudian hari pernyataan ini terbukti tidak benar, kami bersedia menerima sanksi sesuai ketentuan 
+panitia, termasuk diskualifikasi dan pengembalian hadiah atau pendanaan yang telah diterima. 
+Pakta integritas ini kami buat dengan penuh kesadaran dan memiliki kekuatan hukum. Apabila di kemudian hari 
+ditemukan pelanggaran terhadap butir -butir pernyataan di atas, kami bersedia menerima sanksi administratif 
+berupa pembatalan kepesertaan, pembatalan status pemenang, pengembalian seluruh dana yang telah diterima ke 
+kas negara, beserta sanksi lain sesuai ketentuan yang berlaku. 
+Demikian Pakta Integritas ini kami buat dengan sebenar-benarnya untuk dapat digunakan sebagaimana mestinya. 
+………………….,................................ 2026 
+ 
+No Nama Lengkap Peran NIM/NIDN TTD 
+1. ……………… Ketua tim …………… …………………………… 
+2. ……………… Anggota Tim 1 …………… …………………………… 
+3. ……………… …….dst……… …………… …………………………… 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+--- PAGE 11 ---
+BUKU PEDOMAN PLAY IT! PLUS 
+ 
+ 
+*** 
