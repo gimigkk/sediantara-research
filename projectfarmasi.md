@@ -1,11 +1,11 @@
-# Sediantara: Sistem Pengadaan Obat RSUD Berbasis Integrasi ABC–VEN, Machine Learning & Batas Kas BLUD
+# sediantra: Sistem Pengadaan Obat RSUD Berbasis Integrasi ABC–VEN, Machine Learning & Batas Kas BLUD
 
-> **Sediantara**: Sistem prediksi kebutuhan dan perencanaan pembelian obat RSUD yang menggabungkan **Prioritas Obat (Matriks ABC–VEN)**, **Prediksi Machine Learning (LightGBM)**, **Optimasi Anggaran Tahan Risiko (HiGHS Dual LP)** [12][18], serta **Batas Kas Rumah Sakit (Kas BLUD & Kuota RKO)**.
+> **sediantra**: Sistem prediksi kebutuhan dan perencanaan pembelian obat RSUD yang menggabungkan **Prioritas Obat (Matriks ABC–VEN)**, **Prediksi Machine Learning (LightGBM)**, **Optimasi Anggaran Tahan Risiko (HiGHS Dual LP)** [12][18], serta **Batas Kas Rumah Sakit (Kas BLUD & Kuota RKO)**.
 
 ---
 
 ### Tim Pelaksana & Struktur Peran
-Pengembangan dan pengujian Sediantara dilakukan bersama lintas bidang:
+Pengembangan dan pengujian sediantra dilakukan bersama lintas bidang:
 1. **Dr. Karlisa Priandana, S.T., M.Eng** — Ketua Tim (IPB University; Validasi Ilmiah & Arah Metodologi Penelitian).
 2. **Jeremy Tjahjana** — Koordinator Produk, Bisnis & Sistem Informasi (Kebutuhan Pengguna, Alur Kerja Farmasi, Pengujian Kegunaan).
 3. **Julius Calvin Kurniadi** — Koordinator Teknis (Arsitektur Web, Standar Pengembangan, Integrasi Modul).
@@ -53,19 +53,19 @@ Pengembangan dan pengujian Sediantara dilakukan bersama lintas bidang:
 ### Penjajaran Tema Resmi Hackathon
 > *"Pada fase farmasi, resep menunggu lama, stok obat tidak terpantau secara real-time, dan berisiko terjadi kekosongan obat."* [1]
 
-Sediantara merespons langsung ketiga friksi inti tema hackathon:
+sediantra merespons langsung ketiga friksi inti tema hackathon:
 1. **Resep Menunggu Lama (*Extreme Waiting Times*):**  
-   Standar Pelayanan Minimal (SPM) Farmasi RS (Kepmenkes 129/2008) [10] menetapkan waktu tunggu obat jadi (non-racikan) $\le 30$ menit dan racikan $\le 60$ menit. Salah satu pemicu utama waktu tunggu melampaui SPM adalah **obat baru diketahui kosong saat resep fisik diserahkan pasien di loket depo**. Petugas terpaksa menghentikan antrean untuk konfirmasi telepon ke dokter penulis resep (15–20 menit), mencari padanan di SIMRS, atau amprah cito ke depo lain/gudang induk (15–30 menit). Sediantara menyasar pemicu ini lewat *Days-of-Cover* (DoC) alert harian sebelum stok depo habis. Dampak pemangkasan waktu tunggu dimodelkan lewat proksi waktu intervensi:
+   Standar Pelayanan Minimal (SPM) Farmasi RS (Kepmenkes 129/2008) [10] menetapkan waktu tunggu obat jadi (non-racikan) $\le 30$ menit dan racikan $\le 60$ menit. Salah satu pemicu utama waktu tunggu melampaui SPM adalah **obat baru diketahui kosong saat resep fisik diserahkan pasien di loket depo**. Petugas terpaksa menghentikan antrean untuk konfirmasi telepon ke dokter penulis resep (15–20 menit), mencari padanan di SIMRS, atau amprah cito ke depo lain/gudang induk (15–30 menit). sediantra menyasar pemicu ini lewat *Days-of-Cover* (DoC) alert harian sebelum stok depo habis. Dampak pemangkasan waktu tunggu dimodelkan lewat proksi waktu intervensi:
    $$\Delta T_{\text{tunggu}} \approx \text{Unmet Prescriptions} \times 20\text{ menit (konfirmasi DPJP / amprah cito)}$$
    didukung evaluasi *fill rate* dan jumlah resep tertunda (§7).
 2. **Stok Tidak Terpantau Secara Real-Time:**  
    MVP memantau stok **harian** (snapshot per batch per lokasi dari *read-replica*), belum *real-time*. Ini sudah menutup celah utama cara manual (stok opname berkala), tetapi pemantauan per transaksi membutuhkan akses stok transaksional SIMRS dan masuk rencana pengembangan lanjutan. Pelatihan model dan alokasi kas dijalankan terjadwal tanpa membebani database transaksional.
 3. **Risiko Kekosongan Obat Terprogram (Sistem Pendukung Keputusan / DSS Gudang Induk):**  
-   Kekosongan di depo bersumber dari perencanaan pengadaan gudang induk yang terlambat atau terpotong tanpa prioritas saat kas terbatas [2][3]. Berbeda dari baseline manual yang menggunakan **Metode Konsumsi standar Permenkes 72/2016 jo. Petunjuk Teknis Standar Pelayanan Kefarmasian di RS (Kemenkes RI, 2019) (Static Safety Stock 20%)** [7], Sediantara mengoptimalkan rencana pembelian berbasis kuantil kebutuhan dan prioritas klinis.
+   Kekosongan di depo bersumber dari perencanaan pengadaan gudang induk yang terlambat atau terpotong tanpa prioritas saat kas terbatas [2][3]. Berbeda dari baseline manual yang menggunakan **Metode Konsumsi standar Permenkes 72/2016 jo. Petunjuk Teknis Standar Pelayanan Kefarmasian di RS (Kemenkes RI, 2019) (Static Safety Stock 20%)** [7], sediantra mengoptimalkan rencana pembelian berbasis kuantil kebutuhan dan prioritas klinis.
 
 ### Tiga Friksi Lapangan RSUD yang Diselesaikan
 
-| No | Friksi Lapangan RSUD | Masalah Cara Manual (Excel/SIMRS) | Solusi Sistem Sediantara |
+| No | Friksi Lapangan RSUD | Masalah Cara Manual (Excel/SIMRS) | Solusi Sistem sediantra |
 | :---: | :--- | :--- | :--- |
 | **1** | **Uang Kas BLUD Terbatas & Risiko Diblokir Distributor (Klaim BPJS Macet)** | Excel dan rumus biasa hanya menghitung kebutuhan obat tanpa melihat sisa uang kas tunai rumah sakit [8]. Ketika kas tipis dan tagihan BPJS macet, apoteker terpaksa memotong pesanan pakai perasaan. Akibatnya, obat darurat rawan ikut terpotong atau utang lama menumpuk hingga distributor menghentikan pengiriman obat (*credit lock*). | Sistem membatasi belanja di bawah sisa uang kas BLUD dan kuota resmi tahunan (RKO). Dana dialokasikan bertahap (obat Vital ➔ Esensial ➔ cadangan Vital ➔ cadangan Esensial ➔ Non-Esensial). Dilengkapi rem utang otomatis di hari ke-60 agar utang ke distributor tidak sampai menunggak 90 hari dan memicu pemboikotan. |
 | **2** | **Obat Kosong Bikin Salah Prediksi & Lonjakan Penyakit Musiman Terlewat** | Saat obat kosong 5 hari, sistem mencatat pemakaian = 0. Rumus rata-rata mengira obat tidak laku sehingga pesanan berikutnya makin sedikit (*death spiral*). Selain itu, rumus biasa tidak bisa membaca sinyal cuaca hujan lebat dari BMKG yang memicu lonjakan pasien DBD dan ISPA. | Hari-hari saat stok kosong otomatis diisi dengan rata-rata pemakaian normal 7 hari sebelumnya. Data curah hujan BMKG dihubungkan dengan jeda masa inkubasi penyakit (DBD jeda 21–35 hari) untuk mengantisipasi lonjakan kebutuhan cairan infus sebelum pasien membludak di IGD. |
@@ -110,7 +110,7 @@ Sistem membaca data analitik secara non-blokir via replika baca (*read-replica*)
    - **Fast/Normal-Moving:** Saldo stok fisik $= 0$ ATAU kuantitas dispensing $= 0$ pada hari pelayanan aktif (`outpatient_visits > 0` atau `inpatient_bor > 0`).  
    - **Intermiten / Vital Darurat (mis. SABU, Antidot):** Nilai dispensing $= 0$ adalah kondisi normal (bukan stockout). Maka `is_stockout = true` **hanya** diaktifkan jika saldo stok fisik $\approx 0$ (`current_stock == 0`) ATAU terdapat resep tertunda (`is_unmet_or_substituted = true`), guna mencegah imputasi kebutuhan hantu (*phantom demand*).
 7. **Pembersihan Otomatis Data Anomali SIMRS (Defensive Sanitizer):**  
-   Pada implementasi nyata di RSUD, data SIMRS sering mengalami anomali atau salah ketik. Sediantara dilengkapi lapisan sanitasi data otomatis (*fail-safe guard*) sebelum masuk ke solver matematika:
+   Pada implementasi nyata di RSUD, data SIMRS sering mengalami anomali atau salah ketik. sediantra dilengkapi lapisan sanitasi data otomatis (*fail-safe guard*) sebelum masuk ke solver matematika:
    - **Stok Negatif (Nurse Retur / Gantung Transaksi):** Nilai stok $< 0$ (mis. `-120 unit`) otomatis dinormalisasi ke `0.0` untuk mencegah algoritma memesan box fiktif berlebihan.
    - **Nilai Hilang (`NaN`, `None`):** Imputasi deterministik menggunakan konsumsi dasar historis ($Q_{\text{base}} = \text{daily\_demand} \times 30$) sehingga solver linier terhindar dari *crash* / *unhandled exception*.
    - **Typo Ekstrem / Outlier Absurd (mis. entri 500.000 unit):** Kuantil dibatasi (*historical clamp*) maksimal $10\times$ hingga $20\times$ kebutuhan rata-rata bulanan. Ini mencegah satu obat yang salah ketik menyedot 100% anggaran rumah sakit dan mematikan pengadaan obat lainnya.
@@ -466,7 +466,7 @@ flowchart LR
     end
     style EXT fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#475569
 
-    subgraph ENGINE [" 3. Sediantara Engine (Add-on REST API) "]
+    subgraph ENGINE [" 3. sediantra Engine (Add-on REST API) "]
         direction TB
         S1["<b>Stage 1: Prediksi Kebutuhan</b><br/>LightGBM Kuantil (P50, P80, P90)<br/>Decensoring + BMKG Climate Lag"]:::coreNode
         S2["<b>Stage 2: Optimasi Kas &amp; Risiko</b><br/>Wasserstein DRO Dual LP (HiGHS)<br/>Pagu Kas BLUD + Proteksi Vital"]:::coreNode
@@ -558,7 +558,7 @@ Untuk setiap tanggal replay $t$ (mis. awal tiap bulan selama 12 bulan terakhir):
 
 Pengujian empiris peramalan kebutuhan melintasi 4 siklus tahunan penuh (3 tahun data latih dan 1 tahun murni *out-of-sample holdout* pada 12 siklus perencanaan bulanan) menghasilkan bukti performa berikut:
 
-| Kuantil Kebutuhan ($\tau$) | wQL Sediantara (AI) | wQL Permenkes 72/2016 | wQL Moving Avg | Coverage Sediantara | Coverage Permenkes | Status Kalibrasi |
+| Kuantil Kebutuhan ($\tau$) | wQL sediantra (AI) | wQL Permenkes 72/2016 | wQL Moving Avg | Coverage sediantra | Coverage Permenkes | Status Kalibrasi |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **$\tau = 0.50$ (Median)** | **0.1598** | 0.2252 | 0.1350 | **52.3%** | 88.8% | Terkalibrasi Sempurna (Target: 50,0%) |
 | **$\tau = 0.80$ (Esensial)** | **0.1288** | 0.1076 | 0.1371 | **80.3%** | 88.8% | Terkalibrasi Sempurna (Target: 80,0%) |
@@ -570,7 +570,7 @@ Evaluasi *head-to-head* pada 1 tahun holdout (unseen 2026) terhadap 5 arsitektur
 
 | Model Peramalan | wQL P50 | wQL P80 | wQL P90 | Mean wQL | P90 Coverage | WAPE (%) | Karakteristik Klinis |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Sediantara (Multi-Quantile LightGBM)** | **0.1598** | **0.1288** | **0.0982** | **0.1289** | **91.3%** | **15.98%** | **Unggul Multivariat:** Terkalibrasi seimbang di semua kuantil, membaca BOR & lag iklim BMKG. |
+| **sediantra (Multi-Quantile LightGBM)** | **0.1598** | **0.1288** | **0.0982** | **0.1289** | **91.3%** | **15.98%** | **Unggul Multivariat:** Terkalibrasi seimbang di semua kuantil, membaca BOR & lag iklim BMKG. |
 | **TSB + NegBin (Intermittent Standard)** | 0.1078 | 0.0777 | 0.0510 | 0.0788 | 89.5% | 10.78% | Sangat kuat untuk obat intermiten murni, namun univariat (buta sinyal cuaca BMKG & BOR). |
 | **Climate-Aware ARX (Regresi Iklim BMKG)**| 0.1907 | 0.1378 | 0.0994 | 0.1426 | 79.0% | 19.07% | Menangkap regresi cuaca linier, namun *under-coverage* pada kuantil darurat (79% < 90%). |
 | **SIMRS Moving Average (30-Day Window)** | 0.1350 | 0.1371 | 0.1378 | 0.1367 | 48.8% | 13.50% | **Rentan Stockout:** Coverage P90 hanya 48.8% (obat darurat jebol di 51.2% waktu). |
@@ -579,7 +579,7 @@ Evaluasi *head-to-head* pada 1 tahun holdout (unseen 2026) terhadap 5 arsitektur
 *Temuan Evaluasi:*
 1. **Kalibrasi Probabilistik Presisi Tinggi:** Berkat pelatihan 3 tahun melintasi aneka variasi tahun basah dan kering di Bogor, model mencapai akurasi kuantil ideal pada tahun holdout: P50 tepat di **52.3%** (target 50%), P80 di **80.3%** (target 80%), dan P90 di **91.3%** (target 90%).
 2. **Kelemahan Fatal Moving Average SIMRS:** Walaupun MA mencatat WAPE 13.5%, metode ini mengalami kegagalan proteksi fatal karena kuantil keselamatannya hanya memiliki *coverage* **48.8%** (artinya obat darurat habis pada lebih dari separuh waktu pelayanan).
-3. **Mencegah Penimbunan Modal Mati:** Rumus baku Permenkes 72/2016 memicu pembelian berlebih secara merata (angka cakupan 88.8% di seluruh obat, termasuk vitamin dan suplemen yang menimbun uang kas). Sediantara membagi porsi perlindungan secara tepat: 52.3% pada kebutuhan rutin biasa (menghemat kas), dan 91.3% difokuskan khusus untuk obat penyelamat nyawa (Vital).
+3. **Mencegah Penimbunan Modal Mati:** Rumus baku Permenkes 72/2016 memicu pembelian berlebih secara merata (angka cakupan 88.8% di seluruh obat, termasuk vitamin dan suplemen yang menimbun uang kas). sediantra membagi porsi perlindungan secara tepat: 52.3% pada kebutuhan rutin biasa (menghemat kas), dan 91.3% difokuskan khusus untuk obat penyelamat nyawa (Vital).
 4. **Terbukti Peka Terhadap Musim Hujan (BMKG Bogor):** Prediksi kebutuhan cairan infus DBD meningkat akurasinya karena model membaca sinyal jeda hujan 14–28 hari dari data BMKG Bogor yang stabil dipelajari melintasi 3 siklus musim hujan sebelumnya.
 5. **Karakteristik Akurasi Berdasarkan Karakter Pemakaian Obat:**
    - *Obat Rutin / Stabil (48,5% SKU):* Sangat presisi dengan tingkat kesalahan (WAPE) hanya **5,55%**.
@@ -592,7 +592,7 @@ Evaluasi *head-to-head* pada 1 tahun holdout (unseen 2026) terhadap 5 arsitektur
 
 Pengujian komparatif menyeluruh pada siklus 360 hari (50 SKU RSUD) mencakup performa dasar dan skenario ekstrem simultan (**Lonjakan Presipitasi Ekstrem BMKG Bogor + Penundaan Pembayaran Klaim BPJS 90 Hari**):
 
-| Parameter Evaluasi | Baseline A<br>Permenkes 72/2016 jo. Juknis 2019<br>*(Static Safety Stock 20%)* | Baseline B<br>HiGHS Exact MILP<br>*(Global Exact Solver)* | Baseline C<br>Sediantara Produksi<br>*(Pipeline 3-Tahap: DRO + AP Throttle + Waterfall)* | Selisih C vs A | Selisih C vs B |
+| Parameter Evaluasi | Baseline A<br>Permenkes 72/2016 jo. Juknis 2019<br>*(Static Safety Stock 20%)* | Baseline B<br>HiGHS Exact MILP<br>*(Global Exact Solver)* | Baseline C<br>sediantra Produksi<br>*(Pipeline 3-Tahap: DRO + AP Throttle + Waterfall)* | Selisih C vs A | Selisih C vs B |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Vital Fill Rate (%)** | 96,45% | 93,83% | **92,06%** | -4,39 pp | -1,77 pp *(Setara Aman)* |
 | **Vendor Credit Freeze (Lockout Days)** | **0 Hari** | 60 Hari *(Diboikot PBF)* | **0 Hari** | 0 Hari *(Sama Aman)* | **-60 Hari (Bebas Embargo)** |
@@ -602,11 +602,11 @@ Pengujian komparatif menyeluruh pada siklus 360 hari (50 SKU RSUD) mencakup perf
 
 *Temuan Komparatif Nyata:*  
 1. **Mengapa Solver Matematika Murni (HiGHS Exact MILP) Gagal di Dunia Nyata:** Baseline B adalah solver optimasi eksak standar Operations Research. Di atas kertas formulasi MILP terlihat canggih, namun saat macet klaim BPJS tiba, MILP menghabiskan kas untuk memborong obat buffer hingga kas RSUD tiris. Akibatnya, utang ke distributor menumpuk dan **distributor memboikot RSUD selama 60 hari penuh (Vendor Lockout)**. Pasien tidak bisa dilayani karena distributor menolak mengirim obat.
-2. **Sediantara Menyelamatkan Likuiditas & Ketersediaan Obat:** Sediantara membuktikan bahwa manajemen rantai pasok rumah sakit bukan sekadar masalah matematika statis, melainkan **ketahanan likuiditas**. Berkat rem utang (*AP Debt Throttle*), Sediantara mempertahankan **0 hari lockout**, menjaga kas darurat Rp 47,4 Juta, dan mengamankan 92,06% ketersediaan obat vital tanpa henti.
+2. **sediantra Menyelamatkan Likuiditas & Ketersediaan Obat:** sediantra membuktikan bahwa manajemen rantai pasok rumah sakit bukan sekadar masalah matematika statis, melainkan **ketahanan likuiditas**. Berkat rem utang (*AP Debt Throttle*), sediantra mempertahankan **0 hari lockout**, menjaga kas darurat Rp 47,4 Juta, dan mengamankan 92,06% ketersediaan obat vital tanpa henti.
 
 ### Uji Ketahanan Skalabilitas Beban Apoteker (50 s.d. 2.000 SKU)
 
-Pengujian skalabilitas komputasi pada CPU standar x86_64 membuktikan kesiapan Sediantara melayani instalasi farmasi dari RSUD Tipe C hingga RS Rujukan Nasional Tipe A:
+Pengujian skalabilitas komputasi pada CPU standar x86_64 membuktikan kesiapan sediantra melayani instalasi farmasi dari RSUD Tipe C hingga RS Rujukan Nasional Tipe A:
 
 | Skala Rumah Sakit | Jumlah SKU Aktif | Stage 2 DRO Dual LP | Stage 3 Waterfall | Total UI Response Time | Peak Memory | Status Integritas |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -620,7 +620,7 @@ Pengujian skalabilitas komputasi pada CPU standar x86_64 membuktikan kesiapan Se
 
 Evaluasi perilaku algoritma saat menerima data korup dari SIMRS Khanza (Stok negatif `-120`, Typo `500.000` unit, nilai `NaN`/`None`, dan umur utang PBF rusak):
 
-| Jenis Kerusakan Data SIMRS | Baseline A: Permenkes 72/2016 (Excel) | Baseline B: Exact MILP (OR Solver Standar) | Sediantara (3-Stage Pipeline + Defensive Guard) |
+| Jenis Kerusakan Data SIMRS | Baseline A: Permenkes 72/2016 (Excel) | Baseline B: Exact MILP (OR Solver Standar) | sediantra (3-Stage Pipeline + Defensive Guard) |
 | :--- | :--- | :--- | :--- |
 | **Typo Ekstrem Petugas (mis. entri 500.000 unit)** | **JEBOL FATAL:** 99,9% anggaran rumah sakit (Rp 94,9M) habis disedot 1 obat itu saja. Obat lain mati. | **KORUP PARAH:** Menyedot Rp 51,7M (54,4% kas), mematikan alokasi 13 obat lainnya. | **KEBAL:** Typo dijepit (*historical clamp*) maksimal Rp 17,9M. **Seluruh 50 SKU tetap terdanai.** |
 | **Stok Negatif (Bug Retur / Gantung: -50 unit)** | **OVER-ORDER:** Memesan box fiktif berlebihan karena mengira defisit fisik riil. | **DISTORSI:** Terjebak menambah kuota pesanan tanpa batas. | **KEBAL:** Stok minus dinormalisasi ke `0.0`, order dihitung proporsional terhadap laju konsumsi. |
@@ -628,15 +628,15 @@ Evaluasi perilaku algoritma saat menerima data korup dari SIMRS Khanza (Stok neg
 | **Tanggal Utang PBF Rusak (-45 hari / 99.999 hari)**| **DIABAIKAN:** Tidak ada sensor utang distributor (order jalan terus hingga di-lockout). | **TIDAK TERKONTROL:** Solver tidak memiliki mekanisme kontrol umur faktur. | **KEBAL:** Membekukan distributor menunggak, melindungi rumah sakit dari boikot. |
 
 *Catatan Realisasi Belanja vs Biaya Kedaluwarsa:*  
-1. **Realisasi Belanja Pasien:** Rendahnya belanja pada metode biasa (Baseline A dan B hanya ~Rp 24,5 Juta) **bukan** karena hemat anggaran, melainkan karena rumah sakit diboikot distributor selama 42–48 hari akibat tagihan macet, sehingga pasien tidak terlayani (*Fill Rate* anjlok ke ~40%). Sediantara berhasil melayani kebutuhan pasien hingga Rp 95,2 Juta secara stabil (0 hari boikot) sekaligus menekan pemborosan obat kedaluwarsa hingga tinggal Rp 1,15 Juta (hemat 95,1% dibanding Permenkes).
+1. **Realisasi Belanja Pasien:** Rendahnya belanja pada metode biasa (Baseline A dan B hanya ~Rp 24,5 Juta) **bukan** karena hemat anggaran, melainkan karena rumah sakit diboikot distributor selama 42–48 hari akibat tagihan macet, sehingga pasien tidak terlayani (*Fill Rate* anjlok ke ~40%). sediantra berhasil melayani kebutuhan pasien hingga Rp 95,2 Juta secara stabil (0 hari boikot) sekaligus menekan pemborosan obat kedaluwarsa hingga tinggal Rp 1,15 Juta (hemat 95,1% dibanding Permenkes).
 2. **Mengapa Ketersediaan Obat Vital Tidak 100% (Tercatat 92–93%):** Obat darurat (Vital) selalu diprioritaskan penuh oleh sistem. Selisih ~7% bukan akibat kesalahan hitung sistem, melainkan karena kendala operasional lapangan nyata yang disimulasikan: waktu pengiriman kurir distributor (butuh 3–7 hari di luar kendali RS) serta stok awal hari ke-1 yang memang sudah defisit sebelum pesanan perdana tiba.
 
 *Uji Konsistensi Performa:*
-1. **Keunggulan Merata di Semua Obat:** Sediantara terbukti lebih unggul dibanding rumus Permenkes di seluruh 50 jenis obat yang diuji ($p < 0.001$), bukan hanya unggul pada obat bervolume besar saja.
-2. **Kestabilan dari Waktu ke Waktu:** Uji statistik deret waktu (Diebold-Mariano test pada P50 holdout tahun ke-4 vs Permenkes, $t = -1.59$) membuktikan konsistensi akurasi peramalan Sediantara tanpa bias musiman antartahun.
+1. **Keunggulan Merata di Semua Obat:** sediantra terbukti lebih unggul dibanding rumus Permenkes di seluruh 50 jenis obat yang diuji ($p < 0.001$), bukan hanya unggul pada obat bervolume besar saja.
+2. **Kestabilan dari Waktu ke Waktu:** Uji statistik deret waktu (Diebold-Mariano test pada P50 holdout tahun ke-4 vs Permenkes, $t = -1.59$) membuktikan konsistensi akurasi peramalan sediantra tanpa bias musiman antartahun.
 
 *Mencegah Pemboikotan Menyeluruh oleh Distributor (Cross-Category Contamination):*  
-Distributor farmasi biasanya memblokir pengiriman berdasarkan akun rumah sakit secara keseluruhan (NPWP RSUD), bukan per jenis obat. Pada metode biasa, tunggakan cairan infus yang menumpuk membuat distributor memboikot seluruh suplai obat, termasuk obat bius operasi dan obat darurat ICU. Sediantara secara pintar langsung mengerem pembelian cadangan cairan infus dan obat pelengkap begitu tagihan berumur 60 hari. Hasilnya, utang tetap aman di bawah batas kritis pemutusan (90 hari) tanpa mengorbankan pasokan obat darurat.
+Distributor farmasi biasanya memblokir pengiriman berdasarkan akun rumah sakit secara keseluruhan (NPWP RSUD), bukan per jenis obat. Pada metode biasa, tunggakan cairan infus yang menumpuk membuat distributor memboikot seluruh suplai obat, termasuk obat bius operasi dan obat darurat ICU. sediantra secara pintar langsung mengerem pembelian cadangan cairan infus dan obat pelengkap begitu tagihan berumur 60 hari. Hasilnya, utang tetap aman di bawah batas kritis pemutusan (90 hari) tanpa mengorbankan pasokan obat darurat.
 
 ### Uji Pengaruh Tiap Komponen (Studi Ablasi)
 
@@ -655,9 +655,9 @@ Komponen penentu usulan akhir dihitung berurutan agar transparan saat audit bela
 
 ### Rekapitulasi Keputusan Arsitektur & Perbandingan Solusi (Architectural Trade-offs)
 
-Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, keputusan arsitektur Sediantara dirancang untuk menyelesaikan friksi riil operasional:
+Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, keputusan arsitektur sediantra dirancang untuk menyelesaikan friksi riil operasional:
 
-| Komponen Sistem | Pendekatan Konvensional (Baseline / Excel) | Solusi Arsitektur Sediantara | Landasan Praktis & Referensi |
+| Komponen Sistem | Pendekatan Konvensional (Baseline / Excel) | Solusi Arsitektur sediantra | Landasan Praktis & Referensi |
 | :--- | :--- | :--- | :--- |
 | **Target Buffer Pengaman** | Buffer statis persentase seragam (10%–20%) tanpa melihat kapasitas kas dan risiko ekor kebutuhan. | Wasserstein DRO (HiGHS Dual LP) yang mencari target optimal kontinu di bawah pagu kas cair BLUD (kuota RKO tahunan ditegakkan di Stage 3). | Robust optimization terapan [12][18]; Permendagri 79/2018 [8] |
 | **Sinyal Epidemiologi & Cuaca** | Reaktif setelah wabah terjadi atau rekap kasus manual di luar sistem stok farmasi. | Fitur lag curah hujan BMKG (21–35 hari) dimasukkan ke LightGBM untuk mendeteksi lonjakan cairan infus sebelum pasien masuk IGD. | Lag DBD/ISPA klinis [19] |
