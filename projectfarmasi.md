@@ -25,15 +25,102 @@ Pengembangan dan pengujian sediantra dilakukan bersama lintas bidang:
 | **Target Pengguna** | Tim Farmasi Perencana & Kepala Instalasi Farmasi RSUD (Kelas B & C) |
 | **Pendekatan Sistem** | **Decision-Support System (Human-in-the-Loop):** tiap prediksi disertai faktor pendorong, pembanding baseline, dan dapat di-*override* apoteker dengan log alasan |
 | **Komposisi Tim** | Multi-disiplin: profesional industri, akademisi/dosen periset, dan 4 *core software & data engineers* (kombinasi riset teruji dan sistem siap pakai di RSUD) |
-| **Komputasi & Runtime** | Tanpa GPU: GBDT + dual-stage LP/Greedy di CPU standar. Teruji terkalibrasi: **< 10 ms untuk 50 SKU**, **< 250 ms untuk 500 SKU**, **< 510 ms untuk 1.000 SKU**, dan **~1,04 detik untuk 2.000 SKU** dengan *memory footprint* ramping (~3,9 MB pada 1.000 SKU) berkat representasi matriks *Compressed Sparse Row* (CSR). Arsitektur produksi: Backend REST API FastAPI (Python) decoupled dengan Webapp Frontend Next.js (App Router + Tailwind CSS + Recharts). |
+| **Komputasi & Runtime** | **Sangat Ringan (Tanpa Butuh GPU):** Cukup pakai CPU komputer biasa. Kecepatan hitung teruji: **< 10 ms untuk 50 obat**, **< 250 ms untuk 500 obat**, dan **~1 detik untuk 2.000 obat** (hemat memori hanya ~3,9 MB). Arsitektur: Backend FastAPI (Python) + Frontend Web Next.js. |
 | **Strategi Presentasi & Pitching** | Demo berfokus pada **alur operasional nyata**: Alert Depo $\rightarrow$ Simulasi Defekta Kas Ketat (§6) $\rightarrow$ Draf CSV LKPP. Desain antarmuka mengacu pada standar visual kelas dunia (Rxflow Dashboard) tanpa fitur kosmetik chatbot LLM teks bebas. |
 | **Output Utama** | Alert hari ketahanan stok depo (diperbarui harian dari snapshot stok) + Draf Usulan Pembelian / Defekta untuk Pejabat Pengadaan (PP) & PPK via e-Purchasing LKPP (ekspor CSV) [9] |
 
-### 1.1 Tata Kelola Klinis & Otoritas Keputusan di RSUD
+### 1.1 Pembagian Tugas di Rumah Sakit
 
-1. **Komite / Tim Farmasi dan Terapi (KFT):** Menetapkan kebijakan makro: ambang fraktil CSL target per kelas VEN ($\tau_V, \tau_E, \tau_N$), katalog padanan substitusi legal yang terkunci pada Formularium RS & Formularium Nasional (Fornas), serta stok minimum darurat troli IGD/ICU (`vital_min_stock`) [7].
-2. **Apoteker Perencana / Kepala Instalasi Farmasi:** Mengkaji draf usulan rekomendasi AI, melakukan penyesuaian (*override*) berdasar pertimbangan klinis/musiman dengan kewajiban mengisi log alasan pada `fct_override_log`, dan mengesahkan defekta pengadaan.
-3. **Pejabat Pengadaan (PP) & Pejabat Pembuat Komitmen (PPK):** Mengeksekusi Draf Usulan Pembelian menjadi paket pemesanan resmi (*Purchase Order*) melalui transaksi *e-Purchasing* e-Katalog INAPROC LKPP (Perpres 16/2018 jo. Perpres 12/2021 jo. Perpres 46/2025 & Permendagri 79/2018) [8][9].
+1. **Komite Farmasi dan Terapi (KFT):** Menentukan daftar obat resmi RS (Formularium), daftar obat pengganti jika stok kosong, batas minimum obat darurat di troli IGD/ICU, dan prioritas penyelamatan nyawa (Vital, Esensial, Non-Esensial) [7].
+2. **Apoteker Perencana / Kepala Instalasi Farmasi:** Memeriksa usulan belanja dari sistem AI, mengubah jumlah boks jika ada pertimbangan lapangan (wajib mencatat alasan), dan mengesahkan daftar belanja bulanan (Defekta).
+3. **Pejabat Pengadaan (PP) & Pejabat Pembuat Komitmen (PPK):** Mengeksekusi pembelian resmi ke distributor melalui portal e-Katalog LKPP berdasarkan draf pesanan dari apoteker [8][9].
+
+### 1.2 Alur Bisnis & Alur Kerja Apoteker (Business Process)
+
+Sistem mengintegrasikan operasional farmasi RSUD ke dalam dua ritme terkoordinasi (Harian & Bulanan):
+
+```mermaid
+flowchart LR
+    %% Palette: Minimalist Enterprise (Neutral Slate Foundation + Cobalt Precision Accent)
+    classDef default fill:#ffffff,stroke:#cbd5e1,stroke-width:1.2px,color:#0f172a;
+    classDef processNode fill:#ffffff,stroke:#1d4ed8,stroke-width:1.6px,color:#0f172a;
+    classDef userNode fill:#ffffff,stroke:#0f172a,stroke-width:1.6px,color:#0f172a;
+    classDef alertNode fill:#ffffff,stroke:#b91c1c,stroke-width:1.6px,color:#0f172a;
+
+    subgraph Inputs [" 1. Masukan Data & Kebijakan "]
+        direction TB
+        IN_SIMRS["<b>Data SIMRS & Logistik</b><br/>Snapshot stok depo, resep, batch & RKO"]
+        IN_KAS["<b>Bagian Keuangan RSUD</b><br/>Pagu kas cair BLUD periode berjalan"]
+    end
+    style Inputs fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#475569
+
+    subgraph Harian [" 2. Siklus Harian: Triage Depo "]
+        direction TB
+        H_DOC["<b>Hitung DoC Depo</b><br/>Isolasi troli IGD tersegel"]:::processNode
+        H_ALERT["<b>Alert Obat Kritis</b><br/>DoC &le; Lead Time gudang"]:::alertNode
+        H_AMPRAH["<b>Apoteker Depo</b><br/>Mutasi cito dari gudang induk"]:::userNode
+        H_DOC --> H_ALERT --> H_AMPRAH
+    end
+    style Harian fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#475569
+
+    subgraph Bulanan [" 3. Siklus Bulanan: Perencanaan Gudang "]
+        direction TB
+        B_ENGINE["<b>sediantara Engine</b><br/>Stage 1 ML ➔ Stage 2 LP ➔ Stage 3 Box"]:::processNode
+        B_REVIEW["<b>Apoteker Perencana</b><br/>Review defekta & isi alasan override"]:::userNode
+        B_ENGINE --> B_REVIEW
+    end
+    style Bulanan fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#475569
+
+    subgraph Eksekusi [" 4. Eksekusi Pengadaan "]
+        direction TB
+        OUT_CSV["<b>Draf CSV LKPP</b><br/>Format boks, MOQ & kuota RKO"]:::processNode
+        OUT_PPK["<b>Pejabat Pengadaan (PPK)</b><br/>Penerbitan PO e-Purchasing"]:::userNode
+        OUT_PBF["<b>Distributor PBF</b><br/>Pengiriman obat fisik ke RSUD"]
+        OUT_CSV --> OUT_PPK --> OUT_PBF
+    end
+    style Eksekusi fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#475569
+
+    IN_SIMRS --> H_DOC
+    IN_SIMRS --> B_ENGINE
+    IN_KAS --> B_ENGINE
+    B_REVIEW --> OUT_CSV
+```
+
+#### SOP 5 Langkah Apoteker di sediantra:
+
+1. **Langkah 1: Cek Data & Batas Uang Kas**
+   - Sistem otomatis menarik data stok fisik, riwayat resep, sisa kuota tahunan (RKO), dan tagihan distributor dari SIMRS.
+   - Apoteker mencocokkan sisa uang kas belanja obat bulan ini dengan Bagian Keuangan RS.
+
+2. **Langkah 2: Pilih Mode Belanja**
+   - `p80_standard` *(Normal)*: Belanja rutin bulanan. Obat darurat disiapkan cadangan 90%, obat biasa 80%.
+   - `climate_robust` *(Musim Hujan)*: Tambah otomatis cadangan cairan infus DBD dan obat batuk/ISPA berdasar data BMKG.
+   - `p50_lean` *(Kas Kritis)*: Mode hemat saat klaim BPJS belum cair. Hanya beli kebutuhan pokok tanpa cadangan ekstra.
+
+3. **Langkah 3: Periksa Usulan Belanja (Defekta AI)**
+   - Apoteker mengecek usulan jumlah boks obat, total biaya, dan alasan AI (contoh: *"Hujan lebat BMKG + kamar rawat inap penuh ➔ tambah 12 boks infus RL"*).
+   - Pastikan obat darurat (Vital) tidak terpotong.
+
+4. **Langkah 4: Ubah Jumlah Boks jika Perlu (Override)**
+   - Apoteker bebas menambah/mengurangi boks sesuai kondisi lapangan.
+   - Sistem mewajibkan isi alasan perubahan agar ada bukti tertulis saat diaudit BPK/Inspektorat.
+
+5. **Langkah 5: Cetak Pesanan / Lapor Defisit**
+   - **Jika Kas Cukup:** Klik **"Unduh CSV LKPP"**. Serahkan berkas ke Pejabat Pengadaan (PPK) untuk langsung dipesan di e-Katalog.
+   - **Jika Kas Tidak Cukup:** Sistem otomatis mencetak **Lembar Laporan Defisit Obat Darurat** (daftar obat penyelamat nyawa yang belum terbeli dan nominal uang yang kurang) sebagai dasar minta tambahan dana kas BLUD atau pinjam obat ke Dinkes/RS lain.
+
+### 1.3 Hierarki Frekuensi Pengadaan RSUD (Kapan Harian, Mingguan, & Bulanan?)
+
+Berdasarkan regulasi farmasi RS (*Permenkes 72/2016* & standar SOP RS), proses pengadaan di rumah sakit berjalan dalam **tiga frekuensi waktu yang saling melengkapi**:
+
+| Level Alur | Frekuensi Siklus | Sasaran & Karakteristik Obat | Mengapa Frekuensi Tersebut? |
+| :--- | :---: | :--- | :--- |
+| **Pengadaan Rutin Eksternal (PBF / LKPP)** | **Bulanan**<br/>($H = 30$ hari) | **Mayoritas Obat (~80% Formularium):** Tablet, sirup, injeksi terencana, suplemen, obat kronis. | **Terkunci Siklus Kas BLUD:** Pendapatan klaim BPJS cair bulanan, pagu kas cair BLUD dibuka bulanan oleh Bagian Keuangan, dan Pejabat Pengadaan (PPK) menolak beban administrasi menerbitkan PO LKPP harian untuk obat rutin. |
+| **Pengadaan Fast-Moving / Split Delivery** | **Mingguan / 2 Mingguan**<br/>($H = 7 \text{ s.d. } 14$ hari) | **Fast-moving Kelas A Volume Raksasa:** Khususnya cairan infus (RL, NaCl, Asering). | **Kapasitas Fisik Gudang Terbatas:** Kebutuhan cairan infus mencapai 8.000–15.000 botol/bulan dan tidak muat disimpan sekaligus di gudang RSUD. PO LKPP tetap pagu bulanan, namun pengiriman distributor di-split mingguan (*call-off order*). |
+| **Pengadaan Cito / Darurat Eksternal** | **Insidental / Harian**<br/>(Setiap Saat) | **Obat Darurat Penyelamat Nyawa (Vital):** SABU, Epinefrin, Antidot saat stok habis tak terduga. | **Penyelamatan Pasien:** Dijalankan via mekanisme SPK Darurat Langsung BLUD (*Permendagri 79/2018 Ps. 76*) atau meminjam ke apotek rekanan/Dinas Kesehatan. |
+| **Distribusi Stok Internal (Bukan Beli ke Luar)** | **Harian**<br/>(Tiap Pagi / Shift) | **Seluruh Loket Pelayanan:** Depo IGD, Depo Rawat Jalan, Depo Rawat Inap, ICU. | **Pencegahan Resep Macet:** Loket apotek IGD meminta droping stok harian ke **Gudang Induk RS** (*amprah harian*) agar obat tidak kosong saat pasien antre resep. |
+
+> **Implementasi di sediantra:** Parameter perencanaan diatur default pada **$H = 30$ hari (Bulanan)** mengikuti siklus pembagian kas BLUD dan evaluasi klaim BPJS, namun arsitektur kode mendukung konfigurasi parameter `planning_horizon_days = 7` atau `14` jika RSUD ingin mengelompokkan pengadaan khusus cairan infus bervolume besar.
 
 ### Scope Guardrails (Batasan Implementasi MVP)
 
@@ -183,6 +270,10 @@ Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuh
 #### Rincian Implementasi Tiap Stage
 
 ##### Stage 1: Prediksi Kebutuhan Obat (`backend/model_forecast.py`)
+
+> **Ringkasan Singkat:**  
+> Stage 1 menggunakan Machine Learning (LightGBM) untuk memprediksi berapa banyak obat yang akan terpakai bulan depan. Model ini membaca data cuaca BMKG dan lonjakan pasien rawat inap agar obat tidak terlambat dipesan saat wabah datang (seperti lonjakan DBD saat musim hujan).
+
 - **Masalah:** Kebutuhan obat di rumah sakit sering berubah drastis karena faktor luar (wabah musiman, lonjakan pasien rawat inap / BOR, dan hari libur). Selain itu, terdapat disparitas volume skala ekstrem antara obat fast-moving ribuan botol (mis. cairan infus) dan obat darurat intermiten puluhan ampul (mis. epinefrin). Rumus rata-rata biasa selalu terlambat menyadari lonjakan wabah ini, sedangkan model machine learning standar tanpa normalisasi terdistorsi oleh obat bervolume raksasa.
 - **Data Masukan:** Riwayat pemakaian harian SIMRS (rasio rata-rata bergerak 7, 14, 30 hari terhadap konsumsi dasar), data keterisian tempat tidur (BOR), serta data jeda waktu curah hujan BMKG (21–35 hari untuk DBD, 3–7 hari untuk ISPA) [19].
 - **Cara Kerja:** Model **Scale-Normalized Multi-Quantile LightGBM** dilatih memprediksi rasio kebutuhan $y_{\text{ratio}} = y_i / (\bar{y}_{\text{base},i} \times H)$ untuk 3 skenario kuantil pada horizon $H$ hari ke depan [22]:
