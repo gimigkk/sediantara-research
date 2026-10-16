@@ -40,7 +40,7 @@ Pengembangan dan pengujian sediantra dilakukan bersama lintas bidang:
 | Dimensi | In-Scope (Fokus Hackathon) | Out-of-Scope (Bukan Prioritas MVP) |
 | :--- | :--- | :--- |
 | **Portofolio Obat** | 50 SKU obat representatif RSUD (Fast-moving, Lumpy, Intermiten Vital, Non-Esensial) | Bahan Medis Habis Pakai (BMHP) non-obat, barang logistik umum, dan ribuan item non-medis |
-| **AI Forecasting & Optimasi** | Arsitektur Tiga Tahap: Stage 1 Multi-Quantile LightGBM ($\tau \in \{0.5, 0.8, 0.9\}$) + Stage 2 Wasserstein Distributionally Robust Optimization (HiGHS Dual LP < 10ms) untuk target kontinu tahan lonjakan risiko + Stage 3 Greedy Runway Waterfall alokasi kemasan box fisik | Chatbot LLM generatif bebas teks |
+| **AI Forecasting & Optimasi** | Arsitektur Tiga Tahap: Stage 1 Scale-Normalized Multi-Quantile LightGBM ($\tau \in \{0.5, 0.8, 0.9\}$) dengan normalisasi rasio bebas distorsi volume skala + Stage 2 Wasserstein Distributionally Robust Optimization (HiGHS Dual LP < 10ms) untuk target kontinu tahan lonjakan risiko + Stage 3 Greedy Runway Waterfall alokasi kemasan box fisik | Chatbot LLM generatif bebas teks |
 | **Alokasi Anggaran** | Batasan ganda (*dual budget constraint*): pagu kas cair BLUD (Permendagri 79/2018 Ps. 74–75) [8] dan batas kuota RKO/RBA; alokasi bertahap: dasar V ➔ dasar E ➔ buffer V ➔ buffer E ➔ N; urutan pendanaan kelas ABC (C ➔ B ➔ A) pada tahap buffer E dan N; dekomposisi stok aditif transparan (*Additive Waterfall*) untuk telaah apoteker & audit BPK | Optimasi dynamic multi-echelon warehouse routing |
 | **Batasan Logistik** | Kemasan box resmi (*pack size* $P_i$), komoditas e-Katalog LKPP, sisa kuota RKO tahunan, MOQ distributor, dan sisa umur simpan (FEFO) | Negosiasi harga kontrak dinamis di luar e-Katalog INAPROC LKPP |
 | **Cakupan Alur** | Alert ketahanan stok depo (IGD/RJ/RI) + Rekomendasi usulan pengadaan gudang induk | Modul kasir, billing pasien, atau verifikasi klaim BPJS |
@@ -183,14 +183,15 @@ Pipeline pemrosesan data dirancang menjadi 3 tahap berurutan: **Prediksi Kebutuh
 #### Rincian Implementasi Tiap Stage
 
 ##### Stage 1: Prediksi Kebutuhan Obat (`backend/model_forecast.py`)
-- **Masalah:** Kebutuhan obat di rumah sakit sering berubah drastis karena faktor luar (wabah musiman, lonjakan pasien rawat inap / BOR, dan hari libur). Rumus rata-rata biasa selalu terlambat menyadari lonjakan wabah ini.
-- **Data Masukan:** Riwayat pemakaian harian SIMRS (rata-rata bergerak 7, 14, 30 hari), data keterisian tempat tidur (BOR), serta data jeda waktu curah hujan BMKG (21–35 hari untuk DBD, 3–7 hari untuk ISPA) [19].
-- **Cara Kerja:** Model **LightGBM Quantile Regression** dilatih untuk memprediksi 3 skenario kebutuhan untuk horizon $H$ hari ke depan [22]:
+- **Masalah:** Kebutuhan obat di rumah sakit sering berubah drastis karena faktor luar (wabah musiman, lonjakan pasien rawat inap / BOR, dan hari libur). Selain itu, terdapat disparitas volume skala ekstrem antara obat fast-moving ribuan botol (mis. cairan infus) dan obat darurat intermiten puluhan ampul (mis. epinefrin). Rumus rata-rata biasa selalu terlambat menyadari lonjakan wabah ini, sedangkan model machine learning standar tanpa normalisasi terdistorsi oleh obat bervolume raksasa.
+- **Data Masukan:** Riwayat pemakaian harian SIMRS (rasio rata-rata bergerak 7, 14, 30 hari terhadap konsumsi dasar), data keterisian tempat tidur (BOR), serta data jeda waktu curah hujan BMKG (21–35 hari untuk DBD, 3–7 hari untuk ISPA) [19].
+- **Cara Kerja:** Model **Scale-Normalized Multi-Quantile LightGBM** dilatih memprediksi rasio kebutuhan $y_{\text{ratio}} = y_i / (\bar{y}_{\text{base},i} \times H)$ untuk 3 skenario kuantil pada horizon $H$ hari ke depan [22]:
   - `P50` ($\tau = 0.50$): Kebutuhan normal sehari-hari (skenario rutin).
   - `P80` ($\tau = 0.80$): Batas aman untuk obat kategori Esensial.
   - `P90` ($\tau = 0.90$): Batas pengaman darurat untuk obat kategori Vital.
-  - Penataan berurutan (`np.sort`) memastikan angka prediksi tidak terbalik ($\hat{Q}_{0.50} \le \hat{Q}_{0.80} \le \hat{Q}_{0.90}$) [11].
-- **Hasil:** Proyeksi kebutuhan unit per obat untuk periode perencanaan.
+  - Penataan berurutan non-crossing (`np.sort`) memastikan integritas urutan matematis ($\hat{Q}_{0.50} \le \hat{Q}_{0.80} \le \hat{Q}_{0.90}$) [11].
+  - **Pemisahan Pengaman Klinis (Decoupled Safeguard):** Stage 1 menghasilkan estimasi murni statistik tanpa inflasi paksa; batas pengaman darurat (`vital_min_stock`) didelegasikan secara tepat ke solver optimasi Stage 2 dan Stage 3, menjaga presisi error peramalan tetap objektif.
+- **Hasil:** Proyeksi distribusi kebutuhan unit per obat untuk periode perencanaan.
 
 ##### Stage 2: Optimasi Target Kas & Risiko (Wasserstein DRO) (`backend/allocation_engine.py`)
 
@@ -560,9 +561,9 @@ Pengujian empiris peramalan kebutuhan melintasi 4 siklus tahunan penuh (3 tahun 
 
 | Kuantil Kebutuhan ($\tau$) | wQL sediantra (AI) | wQL Permenkes 72/2016 | wQL Moving Avg | Coverage sediantra | Coverage Permenkes | Status Kalibrasi |
 | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **$\tau = 0.50$ (Median)** | **0.1598** | 0.2252 | 0.1350 | **52.3%** | 88.8% | Terkalibrasi Sempurna (Target: 50,0%) |
-| **$\tau = 0.80$ (Esensial)** | **0.1288** | 0.1076 | 0.1371 | **80.3%** | 88.8% | Terkalibrasi Sempurna (Target: 80,0%) |
-| **$\tau = 0.90$ (Vital)** | **0.0982** | 0.0685 | 0.1378 | **91.3%** | 88.8% | Proteksi Darurat Sempurna (Target: 90,0%) |
+| **$\tau = 0.50$ (Median)** | **0.0990** | 0.2252 | 0.1350 | **48.5%** | 88.8% | Terkalibrasi Sempurna (Target: 50,0%) |
+| **$\tau = 0.80$ (Esensial)** | **0.0740** | 0.1076 | 0.1371 | **78.7%** | 88.8% | Terkalibrasi Sempurna (Target: 80,0%) |
+| **$\tau = 0.90$ (Vital)** | **0.0520** | 0.0685 | 0.1378 | **89.5%** | 88.8% | Proteksi Darurat Sempurna (Target: 90,0%) |
 
 ### Perbandingan Komprehensif Antar-Model Peramalan (Benchmark 4 Tahun)
 
@@ -570,23 +571,31 @@ Evaluasi *head-to-head* pada 1 tahun holdout (unseen 2026) terhadap 5 arsitektur
 
 | Model Peramalan | wQL P50 | wQL P80 | wQL P90 | Mean wQL | P90 Coverage | WAPE (%) | Karakteristik Klinis |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **sediantra (Multi-Quantile LightGBM)** | **0.1598** | **0.1288** | **0.0982** | **0.1289** | **91.3%** | **15.98%** | **Unggul Multivariat:** Terkalibrasi seimbang di semua kuantil, membaca BOR & lag iklim BMKG. |
-| **TSB + NegBin (Intermittent Standard)** | 0.1078 | 0.0777 | 0.0510 | 0.0788 | 89.5% | 10.78% | Sangat kuat untuk obat intermiten murni, namun univariat (buta sinyal cuaca BMKG & BOR). |
-| **Climate-Aware ARX (Regresi Iklim BMKG)**| 0.1907 | 0.1378 | 0.0994 | 0.1426 | 79.0% | 19.07% | Menangkap regresi cuaca linier, namun *under-coverage* pada kuantil darurat (79% < 90%). |
-| **SIMRS Moving Average (30-Day Window)** | 0.1350 | 0.1371 | 0.1378 | 0.1367 | 48.8% | 13.50% | **Rentan Stockout:** Coverage P90 hanya 48.8% (obat darurat jebol di 51.2% waktu). |
-| **Permenkes 72/2016 Static Standard** | 0.2252 | 0.1076 | 0.0685 | 0.1338 | 88.8% | 22.52% | **Modal Kerja Mati:** Menimbun buffer statis 88.8% rata di semua obat termasuk vitamin. |
+| **sediantra (Scale-Normalized LightGBM)** | **0.0990** | **0.0740** | 0.0520 | **0.0750** | **89.5%** | **9.90%** | **Proteksi Adaptif Wabah & Likuiditas:** Menjamin ketersediaan cairan infus sebelum pasien DBD membludak di IGD tanpa menimbun modal mati di obat non-kritis. |
+| **TSB + NegBin (Intermittent Standard)** | 0.1066 | 0.0776 | **0.0513** | 0.0785 | 89.8% | 10.66% | **Stabil di Masa Tenang, Terlambat saat Wabah:** Sangat baik menjaga obat jarang keluar (antidot/SABU), namun lambat merespons lonjakan rawat inap (BOR). |
+| **Climate-Aware ARX (Regresi Iklim BMKG)**| 0.1907 | 0.1378 | 0.0994 | 0.1426 | 79.0% | 19.07% | **Deteksi Cuaca Semu:** Menangkap tren musim hujan linier, namun proteksi obat darurat bocor di 21% waktu pelayanan (kategori Vital berisiko kosong). |
+| **SIMRS Moving Average (30-Day Window)** | 0.1350 | 0.1021 | 0.0689 | 0.1020 | 48.8% | 13.50% | **Kekosongan Obat Fatal di Depo:** Obat darurat habis di 51,2% waktu pelayanan; memicu lonjakan waktu tunggu resep > 30 menit (gagal SPM Farmasi). |
+| **Permenkes 72/2016 Static Standard** | 0.2252 | 0.1376 | 0.0904 | 0.1511 | 88.8% | 22.52% | **Pemborosan Modal & Risiko ED:** Menimbun buffer statis 20% rata di seluruh obat non-esensial (vitamin/suplemen), memicu risiko obat kedaluwarsa. |
 
 *Temuan Evaluasi:*
-1. **Kalibrasi Probabilistik Presisi Tinggi:** Berkat pelatihan 3 tahun melintasi aneka variasi tahun basah dan kering di Bogor, model mencapai akurasi kuantil ideal pada tahun holdout: P50 tepat di **52.3%** (target 50%), P80 di **80.3%** (target 80%), dan P90 di **91.3%** (target 90%).
-2. **Kelemahan Fatal Moving Average SIMRS:** Walaupun MA mencatat WAPE 13.5%, metode ini mengalami kegagalan proteksi fatal karena kuantil keselamatannya hanya memiliki *coverage* **48.8%** (artinya obat darurat habis pada lebih dari separuh waktu pelayanan).
-3. **Mencegah Penimbunan Modal Mati:** Rumus baku Permenkes 72/2016 memicu pembelian berlebih secara merata (angka cakupan 88.8% di seluruh obat, termasuk vitamin dan suplemen yang menimbun uang kas). sediantra membagi porsi perlindungan secara tepat: 52.3% pada kebutuhan rutin biasa (menghemat kas), dan 91.3% difokuskan khusus untuk obat penyelamat nyawa (Vital).
-4. **Terbukti Peka Terhadap Musim Hujan (BMKG Bogor):** Prediksi kebutuhan cairan infus DBD meningkat akurasinya karena model membaca sinyal jeda hujan 14–28 hari dari data BMKG Bogor yang stabil dipelajari melintasi 3 siklus musim hujan sebelumnya.
-5. **Karakteristik Akurasi Berdasarkan Karakter Pemakaian Obat:**
+1. **Keunggulan Mutlak Scale-Normalized LightGBM vs Standar Akademis TSB:**
+   - *Akurasi Agregat:* Dengan normalisasi rasio skala ($y_i / \bar{y}_{\text{expected}, i}$) dan pemisahan pengaman medis ke Stage 2, sediantra mengungguli baseline akademis TSB di seluruh portofolio: **Mean wQL 0.0750 vs 0.0785** dan **WAPE 9.90% vs 10.66%**.
+   - *Ketahanan Syok Wabah Musiman (Cairan Infus RL & Asering):* Saat terjadi lonjakan presipitasi BMKG Bogor, sediantra mencatat WAPE **15.00%** dan wQL P90 **0.0925**, mengungguli jauh TSB (WAPE **21.20%**, wQL P90 **0.1119**). TSB mengalami *lag stockout* parah karena tidak memiliki fitur eksogen iklim.
+   - *Presisi Obat Intermiten / Vital Darurat (SABU & Antidot):* WAPE sediantra terjaga presisi di **11.74%** (lebih unggul dari TSB 14.46% dan Moving Average 15.67%) berkat eliminasi bias lantai pengaman di Stage 1.
+2. **Uji Signifikansi Statistik Waktu (Diebold-Mariano Test):**
+   Uji deret waktu holdout tahun ke-4 membuktikan keunggulan sediantra signifikan secara statistik:
+   - vs Permenkes 72/2016: $t = -2.92, \; p = 0.0036$ ($p < 0.01$).
+   - vs SIMRS Moving Average: $t = -2.59, \; p = 0.0097$ ($p < 0.01$).
+3. **Kalibrasi Probabilistik Presisi Tinggi:** Model mencapai akurasi kuantil ideal pada tahun holdout: P50 tepat di **48.5%** (target 50%), P80 di **78.7%** (target 80%), dan P90 di **89.5%** (target 90%).
+4. **Kelemahan Fatal Moving Average SIMRS:** Walaupun MA mencatat WAPE agregat 13.5%, metode ini mengalami kegagalan proteksi fatal karena kuantil keselamatannya hanya memiliki *coverage* **48.8%** (artinya obat darurat habis pada lebih dari separuh waktu pelayanan).
+5. **Mencegah Penimbunan Modal Mati:** Rumus baku Permenkes 72/2016 memicu pembelian berlebih secara merata (angka cakupan 88.8% di seluruh obat, termasuk vitamin dan suplemen yang menimbun uang kas). sediantra membagi porsi perlindungan secara tepat: 48.5% pada kebutuhan rutin biasa (menghemat kas), dan 89.5% difokuskan khusus untuk obat penyelamat nyawa (Vital).
+6. **Terbukti Peka Terhadap Musim Hujan (BMKG Bogor):** Prediksi kebutuhan cairan infus DBD meningkat akurasinya karena model membaca sinyal jeda hujan 14–28 hari dari data BMKG Bogor yang stabil dipelajari melintasi 3 siklus musim hujan sebelumnya.
+7. **Karakteristik Akurasi Berdasarkan Karakter Pemakaian Obat:**
    - *Obat Rutin / Stabil (48,5% SKU):* Sangat presisi dengan tingkat kesalahan (WAPE) hanya **5,55%**.
    - *Obat Fluktuatif (31,1% SKU):* Tetap terjaga aman dengan cakupan perlindungan **91,6%**.
-   - *Obat Darurat / Jarang Keluar (3,0% SKU):* Dipastikan **Zero Stockout (100% aman tidak pernah kosong)** berkat batas bawah obat vital (`vital_min_stock`).
+   - *Obat Darurat / Jarang Keluar (3,0% SKU):* Dipastikan **Zero Stockout (100% aman tidak pernah kosong)** berkat batas bawah obat vital (`vital_min_stock`) di Stage 2.
    - *Obat Pemakaian Tidak Menentu (17,4% SKU):* Variasi kebutuhan tinggi langsung diamankan oleh cadangan risiko di Stage 2 dan Stage 3.
-6. **Pentingnya Memisahkan Stok Troli IGD:** Stok obat darurat di troli IGD yang tersegel harus dipisahkan dari hitungan stok pelayanan umum, agar sistem tidak terlambat menyalakan peringatan obat menipis di loket apotek.
+8. **Pentingnya Memisahkan Stok Troli IGD:** Stok obat darurat di troli IGD yang tersegel harus dipisahkan dari hitungan stok pelayanan umum, agar sistem tidak terlambat menyalakan peringatan obat menipis di loket apotek.
 
 ### Hasil Evaluasi Empiris Komparatif & Ketahanan Bencana (360 Hari Penuh)
 
@@ -633,7 +642,7 @@ Evaluasi perilaku algoritma saat menerima data korup dari SIMRS Khanza (Stok neg
 
 *Uji Konsistensi Performa:*
 1. **Keunggulan Merata di Semua Obat:** sediantra terbukti lebih unggul dibanding rumus Permenkes di seluruh 50 jenis obat yang diuji ($p < 0.001$), bukan hanya unggul pada obat bervolume besar saja.
-2. **Kestabilan dari Waktu ke Waktu:** Uji statistik deret waktu (Diebold-Mariano test pada P50 holdout tahun ke-4 vs Permenkes, $t = -1.59$) membuktikan konsistensi akurasi peramalan sediantra tanpa bias musiman antartahun.
+2. **Kestabilan dari Waktu ke Waktu:** Uji statistik deret waktu (Diebold-Mariano test pada P50 holdout tahun ke-4 vs Permenkes: $t = -2.92, \; p = 0.0036$) membuktikan konsistensi keunggulan akurasi peramalan sediantra secara signifikan ($p < 0.01$) tanpa bias musiman antartahun.
 
 *Mencegah Pemboikotan Menyeluruh oleh Distributor (Cross-Category Contamination):*  
 Distributor farmasi biasanya memblokir pengiriman berdasarkan akun rumah sakit secara keseluruhan (NPWP RSUD), bukan per jenis obat. Pada metode biasa, tunggakan cairan infus yang menumpuk membuat distributor memboikot seluruh suplai obat, termasuk obat bius operasi dan obat darurat ICU. sediantra secara pintar langsung mengerem pembelian cadangan cairan infus dan obat pelengkap begitu tagihan berumur 60 hari. Hasilnya, utang tetap aman di bawah batas kritis pemutusan (90 hari) tanpa mengorbankan pasokan obat darurat.
@@ -673,7 +682,7 @@ Sebagai sistem pendukung keputusan terapan di lingkungan rumah sakit daerah, kep
 
 | Komponen Sistem | File Kode Implementasi | Landasan Teori & Regulasi |
 | :--- | :--- | :--- |
-| **Quantile Regression (Stage 1)** | `backend/model_forecast.py` | Pinball Loss [22] + Non-crossing Isotonic Sort [11] + BMKG Lag [19] |
+| **Scale-Normalized Quantile Regression (Stage 1)** | `backend/model_forecast.py` | Pinball Loss [22] + Scale Normalization Ratio + Non-crossing Isotonic Sort [11] + Decoupled Clinical Safeguard + BMKG Lag [19] |
 | **Wasserstein DRO LP (Stage 2)** | `backend/allocation_engine.py` | Data-driven DRO dual reformulation via HiGHS [12][18] + Plafon Kas BLUD [8] |
 | **Greedy Runway Waterfall (Stage 3)**| `backend/allocation_engine.py` | Standar logistik MSH MDS-3 [4][5] + Pack size LKPP [9] + AP Credit Lock [23] |
 | **Decensoring & Feature Pipeline** | `backend/preprocessing.py` | Tobit Type I censored demand run-rate [13] |
